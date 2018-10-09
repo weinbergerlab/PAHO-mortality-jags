@@ -5,7 +5,9 @@ library(RCurl)
 library(reshape2)
 library(lubridate)
 library(abind)
-setwd('C:/Users/dmw63/Desktop/My documents h/PAHO mortality/paho mrtality jags')
+
+setwd('C:/Users/dmw63/Desktop/My documents h/PAHO mortality/paho mrtality jags') #Directory where the model code is
+
 input_directory  <- "C:/Users/dmw63/Your team Dropbox/PAHO mortality/Data/" #Directory or URL page containing input data file
 file_name="PAHO all age cuts_SubChapters.csv"
 output_directory <- '../JAGS_results'   #Directory where results will be saved.
@@ -13,12 +15,15 @@ output_directory <- paste(output_directory,'_', format(Sys.time(), '%Y-%m-%d-%H%
 data_file <- paste0(input_directory, file_name)
 #prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM LOCAL
 prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM URL
+
+#Filter to obtain relevant age groups
 prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)=='2-23m',]  #Only <12m
 prelog_data<-prelog_data[which(substr(prelog_data$age_group,10,10)!='A'),]  #filter out summary categories
 prelog_data<-prelog_data[,c('age_group', 'monthdate','J12_J18_prim','acm_noj_prim' )]
 prelog_data$monthdate<-as.Date(prelog_data$monthdate)
 prelog_data$country<-substr(prelog_data$age_group,1,2)
-################Set Vax intro date for each country
+
+##Set Vax intro date for each country
 prelog_data$intro.date<-as.Date('1900-01-01')
 prelog_data$intro.date[prelog_data$country=='ar'] <-as.Date('2010-03-01')
 prelog_data$intro.date[prelog_data$country=='br']<-as.Date('2010-03-01')
@@ -32,7 +37,8 @@ prelog_data$intro.date[prelog_data$country=='nc'] <-as.Date('2011-01-01')
 prelog_data$intro.date[prelog_data$country=='pr']  <-as.Date('2009-08-01') 
 prelog_data$interval.date<- prelog_data$intro.date %--% prelog_data$monthdate
 prelog_data$post.index<-round(as.numeric(as.duration(prelog_data$interval.date),'months'))
-######################
+##
+
 prelog_data$interval.date<-NULL
 prelog_data$hdi<-substr(prelog_data$age_group,10,11)
 
@@ -50,6 +56,7 @@ names(hdi.index)<-c('country','grp.index','hdi')
 prelog_data_spl$country_index<-as.numeric(as.factor(prelog_data_spl$country))
 prelog_data_spl<-prelog_data_spl[,c( 'index','country_index','grp.index',"J12_J18_prim","acm_noj_prim","post.index")]
 
+#Reshape data into 3D arrays--separate arrays for outcome, controls, time index
 ds.m<-melt(prelog_data_spl,id.vars=c( 'index','country_index','grp.index'))
 outcome.array<- acast(ds.m[ds.m$variable=="J12_J18_prim",], country_index~grp.index~index )   #Outcome array
 control1.array<- acast(ds.m[ds.m$variable=="acm_noj_prim",],  country_index~grp.index~index )  #Control array
@@ -63,13 +70,10 @@ int.array<-array(1, dim(control1.array))
 control1.array.int<-abind(int.array,control1.array, along=4 )
 control1.array.int2<-abind(control1.array.int,post.index.array, along=4 )
 
+#Create variables to be used by JAGS
 N.countries=dim(control1.array.int2)[1]
 n.times=apply(outcome.array,c(1,2), function(x) sum(!is.na(x))) #Vector (or matrix) giving number of non-missing observations per state
-# test.array<-post.index.array
-# test.array[is.na(test.array)]<-0
-# n.times.test<-apply(test.array, c(1,2), function(x) max(x, na.rm=TRUE))
 N.states.country<-apply(n.times,1, function(x) sum(x!=0)  )
-#which.states<-apply(n.times,1, function(x) paste(which(x!=0), collapse=',')  )
 
 N.preds=3 #N predictors ( intercept, acm_noj, post-vax time trend)
 q=3  #N predictors of slopes (if none, set to 1 for int only)
@@ -100,4 +104,29 @@ for(i in 1:N.countries){
 }
 offset<-array(0, dim=dim(outcome.array)) #no offset
 
+#Call JAGS Model
 source('model.R')
+
+#Extract output
+mcmc.labels<- dimnames(posterior_samples[[1]])[[2]]
+
+#Theta global slopes
+theta3 <- posterior_samples[[1]][,grep('theta[3', mcmc.labels, fixed=TRUE )] #theta3=post-vaccine slope for low, med, high
+theta.high.hdi<- theta3[,grep('theta[3,1', dimnames(theta3)[[2]], fixed=TRUE )]
+theta.lo.hdi<- theta.high.hdi+ theta3[,grep('theta[3,2', dimnames(theta3)[[2]], fixed=TRUE )]
+theta.med.hdi<- theta.high.hdi+ theta3[,grep('theta[3,3', dimnames(theta3)[[2]], fixed=TRUE )]
+theta.hdi.comb<- cbind.data.frame( theta.lo.hdi, theta.med.hdi,theta.high.hdi)
+theta.hdi.comb.q<-t(apply(theta.hdi.comb,2, quantile, probs=c(0.025,0.5,0.975)))
+theta.hdi.comb.q.rr<-exp(theta.hdi.comb.q) #low, med, high hdi
+
+#Gamma country parameters-gamma 3 is the slope for post vax trend
+all.gamma <- posterior_samples[[1]][,grep('gamma', mcmc.labels, fixed=TRUE )] 
+gamma.high.hdi<- all.gamma[,grep(",3,1",dimnames(all.gamma)[[2]])]
+gamma.lo.hdi<- gamma.high.hdi+ all.gamma[,grep(",3,2",dimnames(all.gamma)[[2]])]
+gamma.med.hdi<-  gamma.high.hdi+ all.gamma[,grep(",3,3",dimnames(all.gamma)[[2]])]
+gamma.hdi.comb<- abind( gamma.lo.hdi, gamma.med.hdi,gamma.high.hdi, along=3)
+gamma.hdi.comb.q<-apply(gamma.hdi.comb,c(2,3), quantile, probs=c(0.025,0.5,0.975))
+gamma.hdi.comb.q.rr<-exp(gamma.hdi.comb.q) #low, med, high hdi for 3 countries
+
+
+grep('theta\\[3,', mcmc.labels)

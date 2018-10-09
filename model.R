@@ -82,7 +82,7 @@ model_jags<-jags.model(textConnection(model_string),
                                  'I_Omega' = I_Omega)) 
 
 update(model_jags, 
-       n.iter=1000) 
+       n.iter=10000) 
 
 posterior_samples<-coda.samples(model_jags, 
                                 variable.names=c("sigma_phi",
@@ -91,8 +91,8 @@ posterior_samples<-coda.samples(model_jags,
                                 thin=1,
                                 n.iter=10000)
 
-post1.summary<-summary(posterior_samples)
-plot(posterior_samples, 
-     ask=TRUE)
+#post1.summary<-summary(posterior_samples)
+# plot(posterior_samples, 
+#      ask=TRUE)
 
 
