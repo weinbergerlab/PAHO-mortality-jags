@@ -21,22 +21,22 @@ for(v in 1:n[i,j]){
     log(mu[i,j,v])<-(beta[i,j,1] 
     + step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
     + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) + beta[i,j,3]*x[i,j,v,2]
+    + month.dummy[i,j,v,1] * delta[i,j,1] + month.dummy[i,j,v,2] * delta[i,j,2]
+    + month.dummy[i,j,v,3] * delta[i,j,3] + month.dummy[i,j,v,4] * delta[i,j,4]
+    + month.dummy[i,j,v,5] * delta[i,j,5] + month.dummy[i,j,v,6] * delta[i,j,6]
+    + month.dummy[i,j,v,7] * delta[i,j,7] + month.dummy[i,j,v,8] * delta[i,j,8]
+    + month.dummy[i,j,v,9] * delta[i,j,9] + month.dummy[i,j,v,10] * delta[i,j,10]
+    + month.dummy[i,j,v,11] * delta[i,j,11]
     +disp[i,j,v]
 )
-    reg_unbias[i,j,v]<-(
+    log_rr_estimate[i,j,v]<-(
     step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
     + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) + beta[i,j,3]*x[i,j,v,2]
-    +disp[i,j,v]
+    
     )
 
 disp[i,j,v]~dnorm(0, tau.disp[i,j])
 }
-for(k1 in 1:n[i,j]){
-for(k2 in 1:n[i,j]){
-w_true_cov_inv[i,j,k1,k2]<-ifelse(k1==k2, w_true_var_inv[i,j], 0)
-}
-}
-
 
 w_true_var_inv[i,j]<-1/(w_true_sd[i,j]*w_true_sd[i,j])
 w_true_sd[i,j] ~ dunif(0, 1000)
@@ -49,6 +49,8 @@ cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 
 #Second Stage Statistical Model
 ###########################################################
 beta[i,j, 1:5] ~ dmnorm(lambda[1:5], Omega_inv[1:5, 1:5])
+delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11])
+
 }
 ########################################################
 #Third Stage Statistical Model
@@ -63,6 +65,9 @@ Omega[1:5, 1:5]<-inverse(Omega_inv[1:5, 1:5])
 
 for(j in c(1:5)){
 lambda[j] ~ dnorm(0, 1e-4)
+}
+for(k in c(1:11)){
+theta[k] ~ dnorm(0, 1e-4)
 }
 
 }
@@ -86,13 +91,15 @@ model_jags<-jags.model(textConnection(model_string),
                                  'x' = control1.array.int,
                                  'w' = w,
                                  'I_Sigma' = I_Sigma,
-                                 'I_Omega' = I_Omega)) 
+                                 'I_Omega' = I_Omega,
+                                 'Omicron_inv'=I_Omicron
+                                 )) 
 
 update(model_jags, 
        n.iter=10000) 
 
 posterior_samples<-coda.samples(model_jags, 
-                                variable.names=c("reg_mean",'reg_unbias' 
+                                variable.names=c('log_rr_estimate' 
                                                  ,"beta",'lambda'),
                                 
                                 thin=1,
