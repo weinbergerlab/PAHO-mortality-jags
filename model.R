@@ -31,7 +31,7 @@ for(v in 1:n[i,j]){
 )
     log_rr_estimate[i,j,v]<-(
     step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
-    + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) + beta[i,j,3]*x[i,j,v,2]
+    + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) 
     
     )
 
@@ -63,8 +63,8 @@ delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parame
 Omega_inv[1:5, 1:5] ~ dwish(I_Omega[1:5, 1:5], (5 + 1))
 Omega[1:5, 1:5]<-inverse(Omega_inv[1:5, 1:5])
 
-Omicron_inv[1:5, 1:5] ~ dwish(I_Omicron[1:5, 1:5], (5 + 1))
-Omicron[1:5, 1:5]<-inverse(Omicron_inv[1:5, 1:5])
+Omicron_inv[1:11, 1:11] ~ dwish(I_Omicron[1:11, 1:11], (11 + 1))
+Omicron[1:11, 1:11]<-inverse(Omicron_inv[1:11, 1:11])
 
 for(j in c(1:5)){
 lambda[j] ~ dnorm(0, 1e-4)
@@ -100,14 +100,13 @@ model_jags<-jags.model(textConnection(model_string),
                                  )) 
 
 update(model_jags, 
-       n.iter=10000) 
+       n.iter=20000) 
 
 posterior_samples<-coda.samples(model_jags, 
-                                variable.names=c('log_rr_estimate' 
-                                                 ,"beta",'lambda'),
+                                variable.names=c('log_rr_estimate', 'mu',"beta", 'lambda'),
                                 
                                 thin=1,
-                                n.iter=20000)
+                                n.iter=50000)
 
 #post1.summary<-summary(posterior_samples)
 # plot(posterior_samples, 

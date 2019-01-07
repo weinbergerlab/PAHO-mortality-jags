@@ -40,6 +40,7 @@ prelog_data$intro.date[prelog_data$country=='pr']  <-as.Date('2009-08-01')
 prelog_data$interval.date<- prelog_data$intro.date %--% prelog_data$monthdate
 prelog_data$post.index<-round(as.numeric(as.duration(prelog_data$interval.date),'months'))
 prelog_data<-prelog_data[prelog_data$post.index<=max.time.points,]
+countries<-unique(prelog_data$country)
 
 
 ##
@@ -68,7 +69,7 @@ control1.array<- acast(ds.m[ds.m$variable=="acm_noj_prim",],  country_index~grp.
 control1.array<-log(control1.array+0.5) #Log transform
 post.index.array <- acast(ds.m[ds.m$variable=="post.index",],  country_index~grp.index~index ) #time index array
 post.index.array[post.index.array<0]<-0 #Pre-vax indices are 0
-post.index.array<-post.index.array/dim(post.index.array)[3]
+post.index.array<-post.index.array/max.time.points
 
 date.array<- as.Date(acast(ds.m[ds.m$variable=="monthdate",], country_index~grp.index~index ),origin="1970-01-01")   #Outcome array
 month.array<-array(month(date.array)   , dim=dim(date.array))
@@ -119,7 +120,6 @@ for(i in 1:N.countries){
 }
 offset<-array(0, dim=dim(outcome.array)) #no offset
 
-time.index<-c(rep(0,times=pre.vax.time), seq.int(from=1, to=max.time.points, by=1))/max.time.points
 
 ###########################
 #Call JAGS Model
@@ -159,7 +159,6 @@ plot.cp<-cbind.data.frame('strata'=1:nrow(quant.cp1),'median.cp'=quant.cp1[,'50%
 plot.cp<-plot.cp[order(plot.cp$country),]
 plot.cp$order2<-1:nrow(plot.cp)
 plot.cp$country2<-NA
-countries<-unique(prelog_data$country)
 for(i in 1:length(countries)){plot.cp$country2[plot.cp$country==i] <-countries[i] }
 tiff(paste0(output_directory,'cp by country.tiff'), width = 7, height = 8, units = "in",res=200)
 cp.plot<-ggplot(data=plot.cp, aes(x=median.cp, y=order2, color=country2)) +
@@ -172,6 +171,7 @@ cp.plot<-ggplot(data=plot.cp, aes(x=median.cp, y=order2, color=country2)) +
 print(cp.plot)
 dev.off()
 saveRDS(plot.cp, file=paste0(output_directory,'CP1 pool model.rds'))
+
 
 
 ############################
@@ -216,7 +216,6 @@ plot(quant.slp1[,'50%'], quant.cp1[,'50%'], col=beta2.lab.spl$country,bty='l', y
 dev.off()
 
 ##melt and cast predicted values into 4D array N,t,i,j array
-
 #Unbias
 reg_unbias<-posterior_samples[[1]][,grep("log_rr_estimate",dimnames(posterior_samples[[1]])[[2]])]
 pred1<-reg_unbias
@@ -228,19 +227,23 @@ reg_unbias2<-cbind.data.frame(pred.indices.spl,t(reg_unbias))
 reg_unbias_m<-melt(reg_unbias2, id=c('time','country','state'))
 reg_unbias_c<-acast(reg_unbias_m, variable~time~country~state)
 reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order(as.numeric(dimnames(reg_unbias_c)[[3]])),order(as.numeric(dimnames(reg_unbias_c)[[4]]))]
-preds.unbias.q<-apply(reg_unbias_c,c(2,3),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+preds.unbias.q<-apply(reg_unbias_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 
-tiff(paste0(output_directory,'country.rr.tiff'), width = 7, height = 8, units = "in",res=200)
+tiff(paste0(output_directory,'subnat.rr.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(4,2,1,1))
 for(i in 1:length(countries)){
   # for(j in 1:N.states[i]){
-  plot.data<-t(preds.unbias.q[,,i])
-  matplot( post.index.array[i,1,]*dim(post.index.array)[3], plot.data,type='l',yaxt='n', xlim=c(0, max.time.points), xlab='months post-PCV introduction', ylim=c(-0.7,0.4), col='gray', lty=c(2,1,2), bty='l')
+  for(j in c(1:3)){
+  plot.data<-t(preds.unbias.q[,,i,j])
+  if( sum(plot.data, na.rm=T)>0){
+  matplot( post.index.array[i,1,]*dim(post.index.array)[3], plot.data,type='l',yaxt='n',add=(j>1), xlim=c(0.1, max.time.points), xlab='months post-PCV introduction', col='gray', lty=c(2,1,2), bty='l')
   abline(h=0)
   axis(side=2, at=c(-0.7,-0.35,0,0.35,0.7), las=1,labels=round(exp(c(-0.7,-0.35,0,0.35,0.7)),1 ))
   # abline(v=0)
+  }
   title(countries[i])
+  }
 }
 dev.off()
 saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.rds"))
