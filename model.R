@@ -49,7 +49,7 @@ cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 
 #Second Stage Statistical Model
 ###########################################################
 beta[i,j, 1:5] ~ dmnorm(lambda[1:5], Omega_inv[1:5, 1:5])
-delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11])
+delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parameters
 
 }
 ########################################################
@@ -62,6 +62,9 @@ delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11])
 #######################################################
 Omega_inv[1:5, 1:5] ~ dwish(I_Omega[1:5, 1:5], (5 + 1))
 Omega[1:5, 1:5]<-inverse(Omega_inv[1:5, 1:5])
+
+Omicron_inv[1:5, 1:5] ~ dwish(I_Omicron[1:5, 1:5], (5 + 1))
+Omicron[1:5, 1:5]<-inverse(Omicron_inv[1:5, 1:5])
 
 for(j in c(1:5)){
 lambda[j] ~ dnorm(0, 1e-4)
@@ -88,11 +91,12 @@ model_jags<-jags.model(textConnection(model_string),
                                  'Y' = outcome.array,
                                  'O' = offset,
                                  'z' =     z   ,
+                                 'month.dummy'=month.dummy,
                                  'x' = control1.array.int,
                                  'w' = w,
                                  'I_Sigma' = I_Sigma,
                                  'I_Omega' = I_Omega,
-                                 'Omicron_inv'=I_Omicron
+                                 'I_Omicron'=I_Omicron
                                  )) 
 
 update(model_jags, 

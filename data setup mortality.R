@@ -133,7 +133,7 @@ source('model.R')
 #############################################################################
 ##### create posterior estimates into data frames (w.true and reg.mean) #####
 #############################################################################
-x.func <- function(x){ sub(".*//[(.*)//].*", "//1", x, perl=TRUE)} 
+x.func <-  function(x){ sub(".*\\[(.*)\\].*", "\\1", x, perl=TRUE)} 
 
 beta1<-posterior_samples[[1]][,grep("^beta.*,1]",dimnames(posterior_samples[[1]])[[2]])] #Intercept
 beta1.lab<-x.func(dimnames(beta1)[[2]]) 
