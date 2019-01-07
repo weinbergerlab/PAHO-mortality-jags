@@ -236,13 +236,13 @@ for(i in 1:length(countries)){
   # for(j in 1:N.states[i]){
   for(j in c(1:3)){
   plot.data<-t(preds.unbias.q[,,i,j])
-  if( sum(plot.data, na.rm=T)>0){
-  matplot( post.index.array[i,1,]*dim(post.index.array)[3], plot.data,type='l',yaxt='n',add=(j>1), xlim=c(0.1, max.time.points), xlab='months post-PCV introduction', col='gray', lty=c(2,1,2), bty='l')
+  if( abs(sum(plot.data, na.rm=T))>0){
+  matplot( post.index.array[i,1,]*max.time.points, plot.data,type='l',yaxt='n',add=(j>1), xlim=c(0.1, max.time.points), xlab='months post-PCV introduction', col=j, lty=c(2,1,2), bty='l')
   abline(h=0)
   axis(side=2, at=c(-0.7,-0.35,0,0.35,0.7), las=1,labels=round(exp(c(-0.7,-0.35,0,0.35,0.7)),1 ))
   # abline(v=0)
-  }
   title(countries[i])
+      }
   }
 }
 dev.off()
