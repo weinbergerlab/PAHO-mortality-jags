@@ -19,8 +19,9 @@ data_file <- paste0(input_directory, file_name)
 prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM URL
 
 #Filter to obtain relevant age groups
-prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)=='2-23m',]  #Only <12m
-prelog_data<-prelog_data[which(substr(prelog_data$age_group,10,10)!='A'),]  #filter out summary categories
+prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)=='2-59m',]  #Only <12m
+prelog_data<-prelog_data[which(substr(prelog_data$age_group,10,10)=='A'),]  #filter out summary categories
+#prelog_data<-prelog_data[which(substr(prelog_data$age_group,10,10)!='A'),]  #filter out summary categories
 prelog_data<-prelog_data[,c('age_group', 'monthdate','J12_J18_prim','acm_noj_prim' )]
 prelog_data$monthdate<-as.Date(prelog_data$monthdate)
 prelog_data$country<-substr(prelog_data$age_group,1,2)
@@ -226,10 +227,11 @@ names(pred.indices.spl)<- c('country','state','time')
 reg_unbias2<-cbind.data.frame(pred.indices.spl,t(reg_unbias))
 reg_unbias_m<-melt(reg_unbias2, id=c('time','country','state'))
 reg_unbias_c<-acast(reg_unbias_m, variable~time~country~state)
-reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order(as.numeric(dimnames(reg_unbias_c)[[3]])),order(as.numeric(dimnames(reg_unbias_c)[[4]]))]
+reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order(as.numeric(dimnames(reg_unbias_c)[[3]])),order(as.numeric(dimnames(reg_unbias_c)[[4]])), drop=F]
 preds.unbias.q<-apply(reg_unbias_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 
+grp.cols<-c('#1b9e77',  '#d95f02',  '#7570b3')
 tiff(paste0(output_directory,'subnat.rr.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(4,2,1,1))
 for(i in 1:length(countries)){
@@ -237,9 +239,14 @@ for(i in 1:length(countries)){
   for(j in c(1:3)){
   plot.data<-t(preds.unbias.q[,,i,j])
   if( abs(sum(plot.data, na.rm=T))>0){
-  matplot( post.index.array[i,1,]*max.time.points, plot.data,type='l',yaxt='n',add=(j>1), xlim=c(0.1, max.time.points), xlab='months post-PCV introduction', col=j, lty=c(2,1,2), bty='l')
+    plot.data<-plot.data[complete.cases(plot.data),]
+    final.rr<-round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2)
+  matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,, drop=F],type='l',yaxt='n',add=(j>1),ylim=c(-1.0,1.0), xlim=c(0.1, max.time.points), 
+           xlab='months post-PCV introduction',  
+           col=grp.cols[j], lty=c(2,1,2), bty='l')
   abline(h=0)
-  axis(side=2, at=c(-0.7,-0.35,0,0.35,0.7), las=1,labels=round(exp(c(-0.7,-0.35,0,0.35,0.7)),1 ))
+  text(46, (0.4+j/3*1), final.rr,col=grp.cols[j])
+  axis(side=2, at=c(-1,-0.7,-0.35,0,0.35,0.7,1), las=1,labels=round(exp(c(-1.0,-0.7,-0.35,0,0.35,0.7,1.0)),1 ))
   # abline(v=0)
   title(countries[i])
       }
