@@ -2,62 +2,67 @@
 #Packages
 ##############
 library(rjags)
-
-#####################################################################################
-#Statistical Model
-#####################################################################################
+###################################################
+##### JAGS (Just Another Gibbs Sampler) model #####
+###################################################
 model_string<-"
-
 model{
-
 for(i in 1:c){
 for(j in 1:s[i]){
-for(t in 1:n[i,j]){
+##################
+#Observation model
+##################
+for(v in 1:n[i,j]){     
+    Y[i,j,v]~dpois(mu[i,j,v]) #Likelihood
 
-############################################################################
-#First Stage Statistical Model
-############################################################################
-Y[i,j,t] ~ dpois(lambda[i,j,t])
-log(lambda[i,j,t]) <- O[i,j,t] + x[i,j,t, 1:p]%*%beta[i,j, 1:p] + phi[i,j,t]
-phi[i,j,t] ~ dnorm(0, sigma2_phi_inv)
+    ##################### 
+    #CHANGE POINT MODEL #
+    #####################
+    log(mu[i,j,v])<-(beta[i,j,1] 
+    + step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
+    + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) + beta[i,j,3]*x[i,j,v,2]
+    +disp[i,j,v]
+)
+    reg_unbias[i,j,v]<-(
+    step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
+    + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) + beta[i,j,3]*x[i,j,v,2]
+    +disp[i,j,v]
+    )
+
+disp[i,j,v]~dnorm(0, tau.disp[i,j])
+}
+for(k1 in 1:n[i,j]){
+for(k2 in 1:n[i,j]){
+w_true_cov_inv[i,j,k1,k2]<-ifelse(k1==k2, w_true_var_inv[i,j], 0)
+}
 }
 
-##############################################################
+
+w_true_var_inv[i,j]<-1/(w_true_sd[i,j]*w_true_sd[i,j])
+w_true_sd[i,j] ~ dunif(0, 1000)
+cp1[i,j]<-exp(beta[i,j,4])
+cp2.add[i,j]<-exp(beta[i,j,5])
+tau.disp[i,j]<-1/sd.disp[i,j]^2
+sd.disp[i,j]~dunif(0,100)
+cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 1 unit after CP1
+###########################################################
 #Second Stage Statistical Model
-##############################################################
-beta[i,j, 1:p] ~ dmnorm(mu1[i,j, 1:p], Sigma_inv[i, 1:p, 1:p])
-for(k in 1:p){
-mu1[i,j,k] <- z[i,j, 1:q]%*%gamma[i,k, 1:q]
+###########################################################
+beta[i,j, 1:5] ~ dmnorm(lambda[1:5], Omega_inv[1:5, 1:5])
 }
-}
-for(k in 1:p){
-
-###############################################################
+########################################################
 #Third Stage Statistical Model
-###############################################################
-gamma[i,k, 1:q] ~ dmnorm(mu2[i,k, 1:q], Omega_inv[k, 1:q, 1:q])
-for(l in 1:q){
-mu2[i,k,l] <- w[i, 1:m]%*%theta[k,l, 1:m]
+########################################################
+#gamma[i, 1:5] ~ dmnorm(lambda[1:5], Sigma_inv[1:5, 1:5])
 }
-}
-Sigma_inv[i, 1:p, 1:p] ~ dwish(I_Sigma[1:p, 1:p], (p + 1))
-Sigma[i, 1:p, 1:p] <- inverse(Sigma_inv[i, 1:p, 1:p])
-}
-
-#############################################################
+#######################################################
 #Remaining Prior Distributions
-#############################################################
-sigma2_phi_inv <- 1/(sigma_phi*sigma_phi)
-sigma_phi ~ dunif(0, 1000)
+#######################################################
+Omega_inv[1:5, 1:5] ~ dwish(I_Omega[1:5, 1:5], (5 + 1))
+Omega[1:5, 1:5]<-inverse(Omega_inv[1:5, 1:5])
 
-for(k in 1:p){
-Omega_inv[k, 1:q, 1:q] ~ dwish(I_Omega[1:q, 1:q], (q + 1))
-Omega[k, 1:q, 1:q] <- inverse(Omega_inv[k, 1:q, 1:q])
-for(l in 1:q){
-for(r in 1:m){
-theta[k,l,r] ~ dnorm(0, 0.0001)
-}
-}
+for(j in c(1:5)){
+lambda[j] ~ dnorm(0, 1e-4)
 }
 
 }
@@ -69,6 +74,8 @@ theta[k,l,r] ~ dnorm(0, 0.0001)
 model_jags<-jags.model(textConnection(model_string),
                        data=list('c' = N.countries, 
                                  's' = N.states.country, 
+                                 'time.index'=post.index.array,
+                                 'max.time.points'= max.time.points , 
                                  'n' = n.times, 
                                  'p' = N.preds, #predictors of outcome
                                  'q' = q,  #predictors of slope
@@ -76,7 +83,7 @@ model_jags<-jags.model(textConnection(model_string),
                                  'Y' = outcome.array,
                                  'O' = offset,
                                  'z' =     z   ,
-                                 'x' = control1.array.int2,
+                                 'x' = control1.array.int,
                                  'w' = w,
                                  'I_Sigma' = I_Sigma,
                                  'I_Omega' = I_Omega)) 
@@ -85,11 +92,11 @@ update(model_jags,
        n.iter=10000) 
 
 posterior_samples<-coda.samples(model_jags, 
-                                variable.names=c("sigma_phi",
-                                                 "beta",
-                                                 "gamma","theta"),
+                                variable.names=c("reg_mean",'reg_unbias' 
+                                                 ,"beta",'lambda'),
+                                
                                 thin=1,
-                                n.iter=10000)
+                                n.iter=20000)
 
 #post1.summary<-summary(posterior_samples)
 # plot(posterior_samples, 

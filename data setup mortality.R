@@ -7,6 +7,8 @@ library(lubridate)
 library(abind)
 
 setwd('C:/Users/dmw63/Desktop/My documents h/PAHO mortality/paho mrtality jags') #Directory where the model code is
+max.time.points=48
+
 
 input_directory  <- "C:/Users/dmw63/Your team Dropbox/PAHO mortality/Data/" #Directory or URL page containing input data file
 file_name="PAHO all age cuts_SubChapters.csv"
@@ -37,6 +39,9 @@ prelog_data$intro.date[prelog_data$country=='nc'] <-as.Date('2011-01-01')
 prelog_data$intro.date[prelog_data$country=='pr']  <-as.Date('2009-08-01') 
 prelog_data$interval.date<- prelog_data$intro.date %--% prelog_data$monthdate
 prelog_data$post.index<-round(as.numeric(as.duration(prelog_data$interval.date),'months'))
+prelog_data<-prelog_data[prelog_data$post.index<=max.time.points,]
+
+
 ##
 
 prelog_data$interval.date<-NULL
@@ -76,7 +81,7 @@ n.times=apply(outcome.array,c(1,2), function(x) sum(!is.na(x))) #Vector (or matr
 N.states.country<-apply(n.times,1, function(x) sum(x!=0)  )
 
 N.preds=3 #N predictors ( intercept, acm_noj, post-vax time trend)
-q=3  #N predictors of slopes (if none, set to 1 for int only)
+q=6  #N predictors of slopes (if none, set to 1 for int only)
 # I_Sigma<-replicate( N.countries, diag(N.preds) )
 I_Sigma<-diag(N.preds) 
 I_Omega<-diag(q)
@@ -104,6 +109,8 @@ for(i in 1:N.countries){
 }
 offset<-array(0, dim=dim(outcome.array)) #no offset
 
+time.index<-c(rep(0,times=pre.vax.time), seq.int(from=1, to=max.time.points, by=1))/max.time.points
+
 #Call JAGS Model
 source('model.R')
 
@@ -129,4 +136,3 @@ gamma.hdi.comb.q<-apply(gamma.hdi.comb,c(2,3), quantile, probs=c(0.025,0.5,0.975
 gamma.hdi.comb.q.rr<-exp(gamma.hdi.comb.q) #low, med, high hdi for 3 countries
 
 
-grep('theta\\[3,', mcmc.labels)
