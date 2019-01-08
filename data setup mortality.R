@@ -1,5 +1,11 @@
 ##Test model with hospitalization data
 
+#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
+for(ag.select in c('12-23m','24-59m','<2m', '2-23m')){
+  for(subnat in c(FALSE, TRUE)){
+    print(ag.select)
+    print(subnat)
+rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
 
 library(RCurl)
 library(reshape2)
@@ -12,16 +18,23 @@ max.time.points=48
 
 input_directory  <- "C:/Users/dmw63/Your team Dropbox/PAHO mortality/Data/" #Directory or URL page containing input data file
 file_name="PAHO all age cuts_SubChapters.csv"
-output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results'   #Directory where results will be saved.
-output_directory <- paste(output_directory,  '/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
 data_file <- paste0(input_directory, file_name)
 #prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM LOCAL
 prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM URL
 
 #Filter to obtain relevant age groups
-prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)=='2-59m',]  #Only <12m
-prelog_data<-prelog_data[which(substr(prelog_data$age_group,10,10)=='A'),]  #filter out summary categories
-#prelog_data<-prelog_data[which(substr(prelog_data$age_group,10,10)!='A'),]  #filter out summary categories
+#prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)==ag.select,]  #Only <12m
+prelog_data<-prelog_data[grep(ag.select,prelog_data$age_group ),]
+if(subnat){
+  prelog_data<-prelog_data[!grepl(' A',prelog_data$age_group ),]  #filter out summary categories
+  output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/subnat'   #Directory where results will be saved.
+  
+}else{
+  prelog_data<-prelog_data[grepl(' A',prelog_data$age_group ),]  #filter out summary categories
+  output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/nat'   #Directory where results will be saved.
+}
+if(ag.select=='<2m'){ ag.select<-'u2m'}
+output_directory <- paste(output_directory,  '/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
 prelog_data<-prelog_data[,c('age_group', 'monthdate','J12_J18_prim','acm_noj_prim' )]
 prelog_data$monthdate<-as.Date(prelog_data$monthdate)
 prelog_data$country<-substr(prelog_data$age_group,1,2)
@@ -161,7 +174,7 @@ plot.cp<-plot.cp[order(plot.cp$country),]
 plot.cp$order2<-1:nrow(plot.cp)
 plot.cp$country2<-NA
 for(i in 1:length(countries)){plot.cp$country2[plot.cp$country==i] <-countries[i] }
-tiff(paste0(output_directory,'cp by country.tiff'), width = 7, height = 8, units = "in",res=200)
+tiff(paste0(output_directory,'cp by country',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 cp.plot<-ggplot(data=plot.cp, aes(x=median.cp, y=order2, color=country2)) +
   geom_point(aes(size=inv.var.cp)) +
   scale_size_continuous(range=c(1,15)) +
@@ -171,7 +184,7 @@ cp.plot<-ggplot(data=plot.cp, aes(x=median.cp, y=order2, color=country2)) +
   scale_color_manual(values=c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6',  '#6a3d9a'))
 print(cp.plot)
 dev.off()
-saveRDS(plot.cp, file=paste0(output_directory,'CP1 pool model.rds'))
+saveRDS(plot.cp, file=paste0(output_directory,'CP1 pool model', ag.select,'.rds'))
 
 
 
@@ -206,7 +219,7 @@ slp.plot<-ggplot(data=plot.slp, aes(x=median.slp, y=order2, color=country2)) +
   scale_color_manual(values=c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6',  '#6a3d9a'))
 print(slp.plot)
 dev.off()
-saveRDS(plot.slp, file=paste0(output_directory,"slope pool model.rds"))
+saveRDS(plot.slp, file=paste0(output_directory,"slope pool model", ag.select,".rds"))
 
 ##########################################
 
@@ -231,21 +244,23 @@ reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order
 preds.unbias.q<-apply(reg_unbias_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 
-grp.cols<-c('#1b9e77',  '#d95f02',  '#7570b3')
-tiff(paste0(output_directory,'subnat.rr.tiff'), width = 7, height = 8, units = "in",res=200)
+grp.cols<-c('black','#1b9e77',  '#d95f02',  '#7570b3')
+tiff(paste0(output_directory,'subnat.rr',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(4,2,1,1))
 for(i in 1:length(countries)){
   # for(j in 1:N.states[i]){
-  for(j in c(1:3)){
+  for(j in c(1:dim(preds.unbias.q)[4])){
   plot.data<-t(preds.unbias.q[,,i,j])
   if( abs(sum(plot.data, na.rm=T))>0){
     plot.data<-plot.data[complete.cases(plot.data),]
-    final.rr<-round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2)
+    final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
+                    ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
+                     round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
   matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,, drop=F],type='l',yaxt='n',add=(j>1),ylim=c(-1.0,1.0), xlim=c(0.1, max.time.points), 
            xlab='months post-PCV introduction',  
            col=grp.cols[j], lty=c(2,1,2), bty='l')
-  abline(h=0)
-  text(46, (0.4+j/3*1), final.rr,col=grp.cols[j])
+  abline(h=0,col='gray')
+  text(44, (0.4+j/3*1), final.rr,col=grp.cols[j])
   axis(side=2, at=c(-1,-0.7,-0.35,0,0.35,0.7,1), las=1,labels=round(exp(c(-1.0,-0.7,-0.35,0,0.35,0.7,1.0)),1 ))
   # abline(v=0)
   title(countries[i])
@@ -253,6 +268,9 @@ for(i in 1:length(countries)){
   }
 }
 dev.off()
-saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.rds"))
+saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias", ag.select,".rds"))
+
+  }
+}
 
 
