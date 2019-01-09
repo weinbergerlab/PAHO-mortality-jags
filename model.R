@@ -12,15 +12,17 @@ for(j in 1:s[i]){
 ##################
 #Observation model
 ##################
-for(v in 1:n[i,j]){     
+for(v in 1:n.pre[i,j]){     
     Y[i,j,v]~dpois(mu[i,j,v]) #Likelihood
 
     ##################### 
-    #CHANGE POINT MODEL #
+    #MODEL #
     #####################
     log(mu[i,j,v])<-(beta[i,j,1] 
-    + step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
-    + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) + beta[i,j,3]*x[i,j,v,2]
+    + beta[i,j,2]*x[i,j,v,2]
+    + beta[i,j,3]*x[i,j,v,3]
+    + beta[i,j,4]*x[i,j,v,4]
+    + beta[i,j,5]*x[i,j,v,5]
     + month.dummy[i,j,v,1] * delta[i,j,1] + month.dummy[i,j,v,2] * delta[i,j,2]
     + month.dummy[i,j,v,3] * delta[i,j,3] + month.dummy[i,j,v,4] * delta[i,j,4]
     + month.dummy[i,j,v,5] * delta[i,j,5] + month.dummy[i,j,v,6] * delta[i,j,6]
@@ -28,23 +30,38 @@ for(v in 1:n[i,j]){
     + month.dummy[i,j,v,9] * delta[i,j,9] + month.dummy[i,j,v,10] * delta[i,j,10]
     + month.dummy[i,j,v,11] * delta[i,j,11]
     +disp[i,j,v]
-)
-    log_rr_estimate[i,j,v]<-(
-    step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
-    + step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]) 
-    
     )
-
 disp[i,j,v]~dnorm(0, tau.disp[i,j])
 }
 
+for(u in 1:n[i,j]){     
+  ##################### 
+  #Prediction#
+  #####################
+log.pred.mu[i,j,u]<-(beta[i,j,1] 
++ beta[i,j,2]*x[i,j,u,2]
++ beta[i,j,3]*x[i,j,u,3]
++ beta[i,j,4]*x[i,j,u,4]
++ beta[i,j,5]*x[i,j,u,5]
++ month.dummy[i,j,u,1] * delta[i,j,1] + month.dummy[i,j,u,2] * delta[i,j,2]
++ month.dummy[i,j,u,3] * delta[i,j,3] + month.dummy[i,j,u,4] * delta[i,j,4]
++ month.dummy[i,j,u,5] * delta[i,j,5] + month.dummy[i,j,u,6] * delta[i,j,6]
++ month.dummy[i,j,u,7] * delta[i,j,7] + month.dummy[i,j,u,8] * delta[i,j,8]
++ month.dummy[i,j,u,9] * delta[i,j,9] + month.dummy[i,j,u,10] * delta[i,j,10]
++ month.dummy[i,j,u,11] * delta[i,j,11]
++disp.pred[i,j,u]
+)
+disp.pred[i,j,u]~dnorm(0, tau.disp[i,j])
+}
+
+
+
+
 w_true_var_inv[i,j]<-1/(w_true_sd[i,j]*w_true_sd[i,j])
 w_true_sd[i,j] ~ dunif(0, 1000)
-cp1[i,j]<-exp(beta[i,j,4])
-cp2.add[i,j]<-exp(beta[i,j,5])
+
 tau.disp[i,j]<-1/sd.disp[i,j]^2
 sd.disp[i,j]~dunif(0,100)
-cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 1 unit after CP1
 ###########################################################
 #Second Stage Statistical Model
 ###########################################################
@@ -83,8 +100,8 @@ model_jags<-jags.model(textConnection(model_string),
                        data=list('c' = N.countries, 
                                  's' = N.states.country, 
                                  'time.index'=post.index.array,
-                                 'max.time.points'= max.time.points , 
                                  'n' = n.times, 
+                                 'n.pre' = n.times.pre, 
                                  'p' = N.preds, #predictors of outcome
                                  'q' = q,  #predictors of slope
                                  'm' = m,
@@ -103,7 +120,7 @@ update(model_jags,
        n.iter=20000) 
 
 posterior_samples<-coda.samples(model_jags, 
-                                variable.names=c('log_rr_estimate', 'mu',"beta", 'lambda'),
+                                variable.names=c( 'mu','log.pred.mu',"beta", 'lambda'),
                                 
                                 thin=1,
                                 n.iter=50000)
