@@ -146,9 +146,10 @@ for(i in 1:N.countries){
 }
 offset<-array(0, dim=dim(outcome.array)) #no offset
 
-aux.output<-list('post.index.array'=post.index.array, 'countries'=countries,
+aux.output1<-list( 'countries'=countries,'month.dummy'=month.dummy,'outcome.array'=outcome.array,'post.index.array'=post.index.array,
                  'n.times.pre'=n.times.pre,'n.times'=n.times,'N.countries'=N.countries,'N.states.country'=N.states.country )
-#saveRDS(aux.output, file=paste0(output_directory,"aux.output", ag.select,".rds"), compress=FALSE)
+saveRDS(aux.output1, file=paste0(output_directory,"in.data.", ag.select,".rds"), compress=FALSE)
+
 
 ###########################
 #Call JAGS Model
@@ -258,7 +259,9 @@ saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
  }
 }
 
+######################################################################
 ###############NEXT PERFORM THE SMOOTHING META_MODEL
+######################################################################
 
 for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
   rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
@@ -272,8 +275,21 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
   dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
   preds.logregmean.sd<- readRDS( file=paste0(output_directory,"preds.logregmean.sd", ag.select,".rds"))
   preds.logregmean.q<- readRDS( file=paste0(output_directory,"preds.logregmean.q", ag.select,".rds"))
-  outcome.array.pre<- readRDS( file=paste0(output_directory,"outcome.array.pre", ag.select,".rds"))
+  aux.output1<- readRDS( file=paste0(output_directory,"in.data.", ag.select,".rds"))
   
+  outcome.array<- aux.output1$outcome.array
+  preds.logregmean.prec<- 1/preds.logregmean.sd^2
+  preds.logregmean.med<-preds.logregmean.q['50%',,,]
+  preds.logregmean.med<-array(preds.logregmean.med, dim=c(dim(preds.logregmean.med),1))
+
+  post.index.array<-aux.output1$post.index.array
+  q<-4
+  I_Omega<-diag(q)
+  N.countries<-aux.output1$N.countries
+  N.states.country<-aux.output1$N.states.country
+  ts.length_mat<-aux.output1$n.times
+    
+    
   #########################
   #CALL JAGS POOLING MODEL
   #########################
@@ -405,7 +421,7 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
   }
   dev.off()
   saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.rds"))
-  
+
 }
 
 
