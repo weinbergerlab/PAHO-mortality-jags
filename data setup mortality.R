@@ -93,14 +93,12 @@ post.index.array[post.index.array<0]<-0 #Pre-vax indices are 0
 post.index.array<-post.index.array/max.time.points
 
 
-
 date.array<- as.Date(acast(ds.m[ds.m$variable=="monthdate",], country_index~grp.index~index ),origin="1970-01-01")   #Outcome array
 month.array<-array(month(date.array)   , dim=dim(date.array))
 month.dummy<-array(NA, dim=c(dim(month.array),11))
 for(i in c(1:11)){
   month.dummy[,,,i]<- as.numeric(month.array==i & !is.na(month.array))
 }
-
 
 #Combine covariate array with intercept along 4th dimension
 int.array<-array(1, dim(control1.array))
@@ -169,20 +167,35 @@ names(beta1.lab.spl)<-c('country','state')
 
 
 ##melt and cast predicted values into 4D array N,t,i,j array
-#predictive distributiom
 log.pred.mu<-posterior_samples[[1]][,grep("log.pred.mu",dimnames(posterior_samples[[1]])[[2]])]
-pred1<-rpois(n=log.pred.mu, lambda=exp(log.pred.mu)) #get prediction interval
-pred1<-matrix(pred1, nrow=nrow(log.pred.mu))
 pred.indices<- x.func(dimnames(log.pred.mu)[[2]]) 
 pred.indices.spl<-matrix(unlist(strsplit(pred.indices, ',',fixed=TRUE)), ncol=3, byrow=TRUE)
 pred.indices.spl<-as.data.frame(pred.indices.spl)
 names(pred.indices.spl)<- c('country','state','time')
+
+#predictive distributio
+pred1<-rpois(n=log.pred.mu, lambda=exp(log.pred.mu)) #get prediction interval
+pred1<-matrix(pred1, nrow=nrow(log.pred.mu))
 reg_unbias2<-cbind.data.frame(pred.indices.spl,t(pred1))
 reg_unbias_m<-melt(reg_unbias2, id=c('time','country','state'))
 reg_unbias_c<-acast(reg_unbias_m, variable~time~country~state)
 reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order(as.numeric(dimnames(reg_unbias_c)[[3]])),order(as.numeric(dimnames(reg_unbias_c)[[4]])), drop=F]
 preds.unbias.q<-apply(reg_unbias_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
+
+#fitted values that only account for parameter uncertainty--use this for 2nd stage model
+log_reg_mean2<-cbind.data.frame(pred.indices.spl,t(log.pred.mu))
+log_reg_mean_m<-melt(log_reg_mean2, id=c('time','country','state'))
+log_reg_mean_c<-acast(log_reg_mean_m, variable~time~country~state)
+log_reg_mean_c<-log_reg_mean_c[,order(as.numeric(dimnames(log_reg_mean_c)[[2]])),order(as.numeric(dimnames(log_reg_mean_c)[[3]])),order(as.numeric(dimnames(log_reg_mean_c)[[4]])), drop=F]
+preds.regmean.q<-apply(log_reg_mean_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+dimnames(preds.regmean.q)[[2]]<- as.numeric(as.character(dimnames(preds.regmean.q)[[2]]))
+preds.logregmean.sd<-apply(log_reg_mean_c,c(2,3,4),sd, na.rm=TRUE)
+
+stage1.output<-list('outcome.array.pre'=outcome.array.pre,'preds.regmean.q'=preds.regmean.q, 'preds.logregmean.sd'=preds.logregmean.sd,  'post.index.array'=post.index.array, 'countries'=countries,'month.dummy'=month.dummy,
+               'n.times.pre'=n.times.pre,'n.times'=n.times,'N.countries'=N.countries,'N.states.country'=N.states.country )
+saveRDS(stage1.output, file=paste0(output_directory,"aux.vars.pooling", ag.select,".rds"))
+
 
 tiff(paste0(output_directory,'obs.vs.exp.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(2,2,1,1))
@@ -238,8 +251,17 @@ dev.off()
 
 saveRDS(log.rr.q, file=paste0(output_directory,"log.rr.q_", ag.select,".rds"))
 saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
- 
  }
+}
+
+###############NEXT PERFORM THE SMOOTHING META_MODEL
+
+for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
+  rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
+  stage1.res<-readRDS( file=paste0(output_directory,"aux.vars.pooling", ag.select,".rds"))
+  
+  
+  
 }
 
 

@@ -105,7 +105,7 @@ model_jags<-jags.model(textConnection(model_string),
                                  'p' = N.preds, #predictors of outcome
                                  'q' = q,  #predictors of slope
                                  'm' = m,
-                                 'Y' = outcome.array,
+                                 'Y' = outcome.array.pre,
                                  'O' = offset,
                                  'z' =     z   ,
                                  'month.dummy'=month.dummy,
