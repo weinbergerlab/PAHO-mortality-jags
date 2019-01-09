@@ -1,8 +1,8 @@
 ##Test model with hospitalization data
 
-#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
-for(ag.select in c('12-23m','24-59m','<2m', '2-23m')){
-  for(subnat in c(FALSE, TRUE)){
+for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
+#for(ag.select in c('12-23m','24-59m','<2m', '2-23m')){
+  for(subnat in c(FALSE)){
     print(ag.select)
     print(subnat)
 rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
@@ -169,7 +169,7 @@ names(beta1.lab.spl)<-c('country','state')
 
 
 ##melt and cast predicted values into 4D array N,t,i,j array
-#Unbias
+#predictive distributiom
 log.pred.mu<-posterior_samples[[1]][,grep("log.pred.mu",dimnames(posterior_samples[[1]])[[2]])]
 pred1<-rpois(n=log.pred.mu, lambda=exp(log.pred.mu)) #get prediction interval
 pred1<-matrix(pred1, nrow=nrow(log.pred.mu))
@@ -177,43 +177,70 @@ pred.indices<- x.func(dimnames(log.pred.mu)[[2]])
 pred.indices.spl<-matrix(unlist(strsplit(pred.indices, ',',fixed=TRUE)), ncol=3, byrow=TRUE)
 pred.indices.spl<-as.data.frame(pred.indices.spl)
 names(pred.indices.spl)<- c('country','state','time')
-reg_unbias2<-cbind.data.frame(pred.indices.spl,t(reg_unbias))
+reg_unbias2<-cbind.data.frame(pred.indices.spl,t(pred1))
 reg_unbias_m<-melt(reg_unbias2, id=c('time','country','state'))
 reg_unbias_c<-acast(reg_unbias_m, variable~time~country~state)
 reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order(as.numeric(dimnames(reg_unbias_c)[[3]])),order(as.numeric(dimnames(reg_unbias_c)[[4]])), drop=F]
 preds.unbias.q<-apply(reg_unbias_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 
-matplot(t(preds.unbias.q[,,1,1]), type='l', col='gray', lty=c(2,1,2))
-
-
-grp.cols<-c('black','#1b9e77',  '#d95f02',  '#7570b3')
-tiff(paste0(output_directory,'subnat.rr',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
-par(mfrow=c(5,2), mar=c(4,2,1,1))
-for(i in 1:length(countries)){
-  # for(j in 1:N.states[i]){
-  for(j in c(1:dim(preds.unbias.q)[4])){
-  plot.data<-t(preds.unbias.q[,,i,j])
-  if( abs(sum(plot.data, na.rm=T))>0){
-    plot.data<-plot.data[complete.cases(plot.data),]
-    final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
-                    ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
-                     round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
-  matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,, drop=F],type='l',yaxt='n',add=(j>1),ylim=c(-1.0,1.0), xlim=c(0.1, max.time.points), 
-           xlab='months post-PCV introduction',  
-           col=grp.cols[j], lty=c(2,1,2), bty='l')
-  abline(h=0,col='gray')
-  text(44, (0.4+j/3*1), final.rr,col=grp.cols[j])
-  axis(side=2, at=c(-1,-0.7,-0.35,0,0.35,0.7,1), las=1,labels=round(exp(c(-1.0,-0.7,-0.35,0,0.35,0.7,1.0)),1 ))
-  # abline(v=0)
+tiff(paste0(output_directory,'obs.vs.exp.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+matplot(t(preds.unbias.q[,,i,1]), type='l', col='gray', lty=c(2,1,2), bty='l')
   title(countries[i])
-      }
-  }
+  points(outcome.array[i,1,], cex=0.5)
+  abline(v=n.times.pre[i], lty=2, col='red')
 }
 dev.off()
-saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias", ag.select,".rds"))
-
-  }
+#####################################
+#####Pointwise Rate ratio calculation
+#####################################
+rr<-array(NA, dim=dim(reg_unbias_c))
+rd<-array(NA, dim=dim(reg_unbias_c))
+for(i in c(1:N.countries)){
+rr[,,i,1]<-t(apply(reg_unbias_c[,,i,1],1,function(x) (outcome.array[i,1,]+0.5) / (x+0.5)   )) 
+rd[,,i,1]<- t(apply(reg_unbias_c[,,i,1],1,function(x) outcome.array[i,1,] - x   )) 
 }
+
+
+
+rr.q<-apply(rr,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+rd.q<-apply(rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+
+log.rr.sd<-apply(log(rr),c(2,3,4),sd,na.rm=TRUE)
+
+dimnames(rr.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
+dimnames(rd.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
+
+log.rr.q<-log(rr.q)
+
+tiff(paste0(output_directory,'rd.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(rd.q[,,i,1]), type='l', col='gray', lty=c(2,1,2), bty='l')
+  title(paste0("Rate Difference ",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=sqrt(0), lty=2, col='red')
+}
+dev.off()
+
+
+tiff(paste0(output_directory,'rr.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(log.rr.q[,,i,1]), type='l', col='gray', lty=c(2,1,2),ylim=c(-1.0,1.5), bty='l')
+  title(paste0("Rate Ratio ",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=0, lty=2, col='red')
+}
+dev.off()
+
+saveRDS(log.rr.q, file=paste0(output_directory,"log.rr.q_", ag.select,".rds"))
+saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
+ 
+ }
+}
+
 
 
