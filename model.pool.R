@@ -12,7 +12,7 @@ for(v in 1:ts.length[i,j]){
 #Model fitted values from SC model
 ##################
 sc.log.mean.pred[v, i,j] ~ dnorm(log_w_true[i,j, v], sc.log.mean.pred.prec[ v, i,j])
-
+log_w_true[i,j, v]~ dnorm(0,1e-4)  ##JOSH: is this OK?
 #################################
 #Model of 'true' time series data
 #################################
@@ -76,4 +76,4 @@ update(model_jags, n.iter=10000)
 posterior_samples<-coda.samples(model_jags, 
                                 variable.names=c("log.rr" ,'cp1','cp2',"beta",'lambda'),
                                 thin=10,
-                                n.iter=50000)
+                                n.iter=20000)
