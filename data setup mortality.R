@@ -216,17 +216,30 @@ dev.off()
 #####################################
 rr<-array(NA, dim=dim(reg_unbias_c))
 rd<-array(NA, dim=dim(reg_unbias_c))
-for(i in c(1:N.countries)){
-rr[,,i,1]<-t(apply(reg_unbias_c[,,i,1],1,function(x) (outcome.array[i,1,]+0.5) / (x+0.5)   )) 
-rd[,,i,1]<- t(apply(reg_unbias_c[,,i,1],1,function(x) outcome.array[i,1,] - x   )) 
+scaled.rd<-array(NA, dim=dim(reg_unbias_c))
+
+comb.pred.array<- abind(reg_unbias_c, log_reg_mean_c , along=5)
+new.data <- aperm(old.data, c(2,3,1))
+outcome.array.reorder<-aperm(outcome.array, c(3,1,2)) #Change dimension order of array, and add dimension to match comb.pred.array
+
+#Noteif using multiple states, need to modify this
+for(k in 1:dim(reg_unbias_c)[1]){
+  rr[k,,,]<-(outcome.array.reorder[,,1]+0.5)/(reg_unbias_c[k,,,]+0.5)
+  rd[k,,,]<-(outcome.array.reorder[,,1])-(reg_unbias_c[k,,,])
+  scaled.rd[k,,,]<- 1- ( reg_unbias_c[k,,,]-outcome.array.reorder[,,1])/exp(log_reg_mean_c[k,,,]) # 1-(exp-obs)/mu1
 }
+ 
 
 
 
 rr.q<-apply(rr,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+scaled.rd.q<-apply(scaled.rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 rd.q<-apply(rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+par(mfrow=c(1,1))
+plot(rr.q[2,,,],scaled.rd.q[2,,,], main='Median RR estimates w/ and w/o continuity correction', bty='l')
 
 log.rr.sd<-apply(log(rr),c(2,3,4),sd,na.rm=TRUE)
+scaled.rd.sd<-apply(scaled.rd,c(2,3,4),sd,na.rm=TRUE)
 
 dimnames(rr.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 dimnames(rd.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
@@ -243,6 +256,15 @@ for(i in 1: length(countries)){
 }
 dev.off()
 
+tiff(paste0(output_directory,'rr.nont.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(scaled.rd.q[,,i,1]), type='l', col='gray', lty=c(2,1,2), ylim=c(-1,3) ,bty='l')
+  title(paste0("Scaled Rate Difference ",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=1, lty=2, col='red')
+}
+dev.off()
 
 tiff(paste0(output_directory,'rr.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(2,2,1,1))
@@ -255,6 +277,8 @@ for(i in 1: length(countries)){
 dev.off()
 
 saveRDS(log.rr.q, file=paste0(output_directory,"log.rr.q_", ag.select,".rds"))
+saveRDS(scaled.rd.q, file=paste0(output_directory,"scaled.rd.q_", ag.select,".rds"))
+saveRDS(scaled.rd.sd, file=paste0(output_directory,"scaled.rd.sd_", ag.select,".rds"))
 saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
  }
 }
@@ -273,14 +297,14 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
   if(ag.select=='<2m'){ ag.select<-'u2m'}
   output_directory <- paste(output_directory,  '/',ag.select,'/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
   dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
-  preds.logregmean.sd<- readRDS( file=paste0(output_directory,"preds.logregmean.sd", ag.select,".rds"))
-  preds.logregmean.q<- readRDS( file=paste0(output_directory,"preds.logregmean.q", ag.select,".rds"))
+  scaled.rd<- readRDS( file=paste0(output_directory,"scaled.rd.q_", ag.select,".rds"))
+  scaled.rd.sd<- readRDS( file=paste0(output_directory,"scaled.rd.sd_", ag.select,".rds"))
+  
   aux.output1<- readRDS( file=paste0(output_directory,"in.data.", ag.select,".rds"))
   
-  outcome.array<- aux.output1$outcome.array
-  preds.logregmean.prec<- 1/preds.logregmean.sd^2
-  preds.logregmean.med<-preds.logregmean.q['50%',,,]
-  preds.logregmean.med<-array(preds.logregmean.med, dim=c(dim(preds.logregmean.med),1))
+  scaled.rd.prec<- 1/scaled.rd.sd^2
+  scaled.rd.med<-scaled.rd['50%',,,]
+  scaled.rd.med<-array(scaled.rd.med, dim=c(dim(scaled.rd.med),1))
 
   post.index.array<-aux.output1$post.index.array
   q<-4
@@ -288,15 +312,42 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
   N.countries<-aux.output1$N.countries
   N.states.country<-aux.output1$N.states.country
   ts.length_mat<-aux.output1$n.times
+  pre.vax.time<-aux.output1$n.times.pre  
     
-    
+  N.states<-aux.output1$N.states.country
+  time.index<-aux.output1$post.index.array
+  
   #########################
   #CALL JAGS POOLING MODEL
   #########################
   source('model.pool.R')
   
+  max.time.points=48
+  countries<-aux.output1$countries
   
   
+  ##########################################################################################
+  ##### test for Convergence - trace plots (specify which to test in "variable.names") #####
+  ##########################################################################################
+  #par(ask=TRUE)
+  #dev.off()
+  #pdf(file = "Trace Plots.pdf")
+  #par(mfrow = c(3,2))
+  #plot(posterior_samples)
+  #dev.off()
+  
+  ##################################################################
+  ##### model fit (DIC) - must change n.chains=2 in model_jags #####
+  ##################################################################
+  # dic.samples(model_jags, 500) #with pooling josh's fix (2 runs w 500 each): deviance: -717, -715; penalty=269,266, DIC=-447, -449
+  #dic.samples(model_jags, 500)
+  
+  # par(mfrow=c(1,1))
+  # caterplot(posterior_samples)
+  
+  #############################################################################
+  ##### create posterior estimates into data frames (w.true and reg.mean) #####
+  #############################################################################
   #############################################################################
   ##### create posterior estimates into data frames (w.true and reg.mean) #####
   #############################################################################
@@ -413,15 +464,20 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
   for(i in 1:length(countries)){
     # for(j in 1:N.states[i]){
     plot.data<-t(preds.unbias.q[,,i])
-    matplot( ((1:tot_time)-pre.vax.time), plot.data,type='l',yaxt='n', xlim=c(0, max.time.points), xlab='months post-PCV introduction', ylim=c(-0.7,0.4), col='gray', lty=c(2,1,2), bty='l')
+    tot_time<-nrow(plot.data)
+    matplot( ((1:tot_time)-pre.vax.time[i]), plot.data,type='l',yaxt='n', xlim=c(0, max.time.points), xlab='months post-PCV introduction', ylim=c(-0.7,0.4), col='gray', lty=c(2,1,2), bty='l')
     abline(h=0)
     axis(side=2, at=c(-0.7,-0.35,0,0.35,0.7), las=1,labels=round(exp(c(-0.7,-0.35,0,0.35,0.7)),1 ))
     # abline(v=0)
     title(countries[i])
   }
   dev.off()
+  
   saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.rds"))
-
+  saveRDS(reg_unbias_c, file=paste0(output_directory, "reg_mean_unbias_with_pooling CP.rds"))
+  saveRDS(state.labels, file=paste0(output_directory,"state labels.rds"))
+  saveRDS(posterior_samples, file=paste0(output_directory, "posterior samples pooling with CP.rds"))
+  
 }
 
 

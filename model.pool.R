@@ -9,32 +9,28 @@ for(i in 1:n.countries){
 for(j in 1:n.states[i]){
 for(v in 1:ts.length[i,j]){       
 ##################
-#Model fitted values from SC model
+#Observation model
 ##################
-sc.log.mean.pred[v, i,j] ~ dnorm(log_w_true[i,j, v], sc.log.mean.pred.prec[ v, i,j])
-log_w_true[i,j, v]~ dnorm(0,1e-4)  ##JOSH: is this OK?
+w_hat[v,i,j] ~ dnorm(w_true[i,j, v], w_hat_prec[ v, i,j])
 #################################
 #Model of 'true' time series data
 #################################
-Y[i,j, v] ~ dpois(epsilon[i,j,v])
-
+w_true[i,j, v] ~ dnorm(reg_mean[i,j,v], w_true_prec_inv[i,j])
 ##################### 
 #CHANGE POINT MODEL #
 #####################
-log(epsilon[i,j,v])<-  (log_w_true[i, j,v] + beta[i,j,1] +
+reg_mean[i,j,v]<-(beta[i,j,1] +
 step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
 +step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]))
-
-log.rr[i,j,v]<- (step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
-+step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j])) 
-
+reg_unbias[i,j,v]<-(step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
++step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]))
 }
 #slope[i,j]<- -exp(beta[i,j,2]) #Ensures slope is negative
 w_true_prec_inv[i,j]<-1/(w_true_sd[i,j]*w_true_sd[i,j])
 w_true_sd[i,j] ~ dunif(0, 100)
 cp1[i,j]<-exp(beta[i,j,3])
 cp2.add[i,j]<-exp(beta[i,j,4])
-cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + time.step   #ensure Cp2 is at least 1 unit after CP1
+cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 1 unit after CP1
 ###########################################################
 #Second Stage Statistical Model
 ###########################################################
@@ -60,20 +56,19 @@ lambda[j] ~ dnorm(0, 1e-4)
 #Model Organization
 model_jags<-jags.model(textConnection(model_string),
                        data=list('n.countries' = N.countries, 
-                                 'n.states' = N.states.country, 
-                                 'Y' = outcome.array,
-                                 'sc.log.mean.pred'=preds.logregmean.med,
-                                 'sc.log.mean.pred.prec' = preds.logregmean.prec, 
+                                 'n.states' = N.states, 
+                                 'w_hat' = scaled.rd.med,
+                                 'w_hat_prec' = scaled.rd.prec, 
                                  'ts.length' = ts.length_mat,
                                  'I_Omega'= I_Omega,
-                                 'time.index'=post.index.array,
-                                 'time.step'=min(post.index.array[post.index.array>0], na.rm=TRUE)), 
-                       n.chains=2, n.adapt=2000) 
+                                 'max.time.points'=max.time.points,
+                                 'time.index'=time.index,
+                                 'I_Sigma'=I_Sigma), n.chains=2, n.adapt=2000) 
 
 #Posterior Sampling
 update(model_jags, n.iter=10000)  
 
 posterior_samples<-coda.samples(model_jags, 
-                                variable.names=c("log.rr" ,'cp1','cp2',"beta",'lambda'),
+                                variable.names=c("reg_mean",'reg_unbias' ,'cp1','cp2',"beta",'lambda'),
                                 thin=10,
                                 n.iter=20000)
