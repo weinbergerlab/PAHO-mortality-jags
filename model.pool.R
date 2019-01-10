@@ -22,10 +22,11 @@ w_true[i,j, v] ~ dnorm(reg_mean[i,j,v], w_true_prec_inv[i,j])
 reg_mean[i,j,v]<-(beta[i,j,1] +
 step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
 +step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]))
+
 reg_unbias[i,j,v]<-(step(time.index[i,j,v] - cp1[i,j])*(1 - step(time.index[i,j,v] - cp2[i,j]))*beta[i,j,2]*(time.index[i,j,v] - cp1[i,j]) 
 +step(time.index[i,j,v] - cp2[i,j])*beta[i,j,2]*(cp2[i,j] - cp1[i,j]))
 }
-#slope[i,j]<- -exp(beta[i,j,2]) #Ensures slope is negative
+
 w_true_prec_inv[i,j]<-1/(w_true_sd[i,j]*w_true_sd[i,j])
 w_true_sd[i,j] ~ dunif(0, 100)
 cp1[i,j]<-exp(beta[i,j,3])
