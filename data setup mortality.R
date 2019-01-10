@@ -25,12 +25,13 @@ prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM URL
 #Filter to obtain relevant age groups
 #prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)==ag.select,]  #Only <12m
 prelog_data<-prelog_data[grep(ag.select,prelog_data$age_group ),]
+if(ag.select=='2-23m'){ prelog_data<-prelog_data[!grepl('12-23m',prelog_data$age_group ),]}
 if(subnat){
-  prelog_data<-prelog_data[!grepl(' A',prelog_data$age_group ),]  #filter out summary categories
+  prelog_data<-prelog_data[!grepl('A',prelog_data$age_group ),]  #filter out summary categories
   output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/subnat'   #Directory where results will be saved.
   
 }else{
-  prelog_data<-prelog_data[grepl(' A',prelog_data$age_group ),]  #filter out summary categories
+  prelog_data<-prelog_data[grepl('A',prelog_data$age_group ),]  #filter out summary categories
   output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/nat'   #Directory where results will be saved.
 }
 if(ag.select=='<2m'){ ag.select<-'u2m'}
@@ -59,9 +60,9 @@ countries<-unique(prelog_data$country)
 prelog_data$J12_J18_prim.pre<-prelog_data$J12_J18_prim
 prelog_data$J12_J18_prim.pre[prelog_data$post.index>0]<-NA
 ##
-
+library(stringr)
 prelog_data$interval.date<-NULL
-prelog_data$hdi<-substr(prelog_data$age_group,10,11)
+prelog_data$hdi<-word(prelog_data$age_group,start=3)
 
 #Assign a time index, starting at 1:N time points
 prelog_data$age_group<-factor(prelog_data$age_group)
@@ -219,7 +220,6 @@ rd<-array(NA, dim=dim(reg_unbias_c))
 scaled.rd<-array(NA, dim=dim(reg_unbias_c))
 
 comb.pred.array<- abind(reg_unbias_c, log_reg_mean_c , along=5)
-new.data <- aperm(old.data, c(2,3,1))
 outcome.array.reorder<-aperm(outcome.array, c(3,1,2)) #Change dimension order of array, and add dimension to match comb.pred.array
 
 #Noteif using multiple states, need to modify this
@@ -229,9 +229,6 @@ for(k in 1:dim(reg_unbias_c)[1]){
   scaled.rd[k,,,]<- 1- ( reg_unbias_c[k,,,]-outcome.array.reorder[,,1])/exp(log_reg_mean_c[k,,,]) # 1-(exp-obs)/mu1
 }
  
-
-
-
 rr.q<-apply(rr,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 scaled.rd.q<-apply(scaled.rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 rd.q<-apply(rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
@@ -283,11 +280,18 @@ saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
  }
 }
 
+##########################################################################################################################################
+##########################################################################################################################################
+##########################################################################################################################################
 ######################################################################
 ###############NEXT PERFORM THE SMOOTHING META_MODEL
 ######################################################################
+##########################################################################################################################################
+##########################################################################################################################################
 
-for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
+#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
+for(ag.select in c('2-11m','12-23m','24-59m','<2m')){
+  
   rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
   if(subnat){
     output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/subnat'   #Directory where results will be saved.
@@ -465,9 +469,9 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
     # for(j in 1:N.states[i]){
     plot.data<-t(preds.unbias.q[,,i])
     tot_time<-nrow(plot.data)
-    matplot( ((1:tot_time)-pre.vax.time[i]), plot.data,type='l',yaxt='n', xlim=c(0, max.time.points), xlab='months post-PCV introduction', ylim=c(-0.7,0.4), col='gray', lty=c(2,1,2), bty='l')
+    matplot( ((1:tot_time)-pre.vax.time[i]), plot.data,type='l',yaxt='n', xlim=c(0, max.time.points), xlab='months post-PCV introduction', ylim=c(-0.2,2.0), col='gray', lty=c(2,1,2), bty='l')
     abline(h=0)
-    axis(side=2, at=c(-0.7,-0.35,0,0.35,0.7), las=1,labels=round(exp(c(-0.7,-0.35,0,0.35,0.7)),1 ))
+    axis(side=2, at=c(0,0.5,0.75,1,1.25, 1.5, 2), las=1,labels=T)
     # abline(v=0)
     title(countries[i])
   }
