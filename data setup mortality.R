@@ -1,7 +1,7 @@
 ##Test model with hospitalization data
 
-#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
-for(ag.select in c('12-23m','24-59m','<2m', '2-23m')){
+for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m', '2-23m')){
+#for(ag.select in c('12-23m','24-59m','<2m', '2-23m')){
   for(subnat in c(FALSE, TRUE)){
     print(ag.select)
     print(subnat)
@@ -25,6 +25,8 @@ prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM URL
 #Filter to obtain relevant age groups
 #prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)==ag.select,]  #Only <12m
 prelog_data<-prelog_data[grep(ag.select,prelog_data$age_group ),]
+if(ag.select=='2-23m'){ prelog_data<-prelog_data[!grepl('12-23m',prelog_data$age_group ),]}
+
 if(subnat){
   prelog_data<-prelog_data[!grepl(' A',prelog_data$age_group ),]  #filter out summary categories
   output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/subnat'   #Directory where results will be saved.
@@ -34,7 +36,9 @@ if(subnat){
   output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/nat'   #Directory where results will be saved.
 }
 if(ag.select=='<2m'){ ag.select<-'u2m'}
-output_directory <- paste(output_directory,  '/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
+output_directory <- paste(output_directory,  '/',ag.select, '.single.model' ,'/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
+dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
+
 prelog_data<-prelog_data[,c('age_group', 'monthdate','J12_J18_prim','acm_noj_prim' )]
 prelog_data$monthdate<-as.Date(prelog_data$monthdate)
 prelog_data$country<-substr(prelog_data$age_group,1,2)
