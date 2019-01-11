@@ -289,8 +289,8 @@ saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
 ##########################################################################################################################################
 ##########################################################################################################################################
 
-#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
-for(ag.select in c('2-11m','12-23m','24-59m','<2m')){
+for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m', '2-24m')){
+#for(ag.select in c('12-23m','24-59m','<2m')){
   
   rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
   if(subnat){
@@ -324,9 +324,9 @@ for(ag.select in c('2-11m','12-23m','24-59m','<2m')){
   #########################
   #CALL JAGS POOLING MODEL
   #########################
+  max.time.points=48
   source('model.pool.R')
   
-  max.time.points=48
   countries<-aux.output1$countries
   
   
@@ -469,9 +469,10 @@ for(ag.select in c('2-11m','12-23m','24-59m','<2m')){
     # for(j in 1:N.states[i]){
     plot.data<-t(preds.unbias.q[,,i])
     tot_time<-nrow(plot.data)
-    matplot( ((1:tot_time)-pre.vax.time[i]), plot.data,type='l',yaxt='n', xlim=c(0, max.time.points), xlab='months post-PCV introduction', ylim=c(-0.2,2.0), col='gray', lty=c(2,1,2), bty='l')
-    abline(h=0)
-    axis(side=2, at=c(0,0.5,0.75,1,1.25, 1.5, 2), las=1,labels=T)
+    max.x<-max(((1:tot_time)-pre.vax.time[i]), na.rm=T)
+    matplot( ((1:tot_time)-pre.vax.time[i]), plot.data+1,type='l',yaxt='n', xlim=c(0, max.x), xlab='months post-PCV introduction', ylim=c(-0.2,1.5), col='gray', lty=c(2,1,2), bty='l')
+    abline(h=1)
+    axis(side=2, at=c(0,0.5,1, 1.5, 2), las=1,labels=T)
     # abline(v=0)
     title(countries[i])
   }
@@ -479,7 +480,7 @@ for(ag.select in c('2-11m','12-23m','24-59m','<2m')){
   
   saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.rds"))
   saveRDS(reg_unbias_c, file=paste0(output_directory, "reg_mean_unbias_with_pooling CP.rds"))
-  saveRDS(state.labels, file=paste0(output_directory,"state labels.rds"))
+  #saveRDS(state.labels, file=paste0(output_directory,"state labels.rds"))
   saveRDS(posterior_samples, file=paste0(output_directory, "posterior samples pooling with CP.rds"))
   
 }

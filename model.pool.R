@@ -12,10 +12,11 @@ for(v in 1:ts.length[i,j]){
 #Observation model
 ##################
 w_hat[v,i,j] ~ dnorm(w_true[i,j, v], w_hat_prec[ v, i,j])
+
 #################################
 #Model of 'true' time series data
 #################################
-w_true[i,j, v] ~ dnorm(reg_mean[i,j,v], w_true_prec_inv[i,j])
+w_true[i,j, v] ~ dnorm(reg_mean[i,j,v], w_true_prec_inv[i,j]) 
 ##################### 
 #CHANGE POINT MODEL #
 #####################
@@ -31,7 +32,7 @@ w_true_prec_inv[i,j]<-1/(w_true_sd[i,j]*w_true_sd[i,j])
 w_true_sd[i,j] ~ dunif(0, 100)
 cp1[i,j]<-exp(beta[i,j,3])
 cp2.add[i,j]<-exp(beta[i,j,4])
-cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 1 unit after CP1
+cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + t.interval   #ensure Cp2 is at least 1 unit after CP1
 ###########################################################
 #Second Stage Statistical Model
 ###########################################################
@@ -61,10 +62,10 @@ model_jags<-jags.model(textConnection(model_string),
                                  'w_hat' = scaled.rd.med,
                                  'w_hat_prec' = scaled.rd.prec, 
                                  'ts.length' = ts.length_mat,
+                                 't.interval'= min(time.index[time.index>0], na.rm=T),
                                  'I_Omega'= I_Omega,
                                  'max.time.points'=max.time.points,
-                                 'time.index'=time.index,
-                                 'I_Sigma'=I_Sigma), n.chains=2, n.adapt=2000) 
+                                 'time.index'=time.index), n.chains=2, n.adapt=2000) 
 
 #Posterior Sampling
 update(model_jags, n.iter=10000)  
