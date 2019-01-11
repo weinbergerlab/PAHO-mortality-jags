@@ -476,11 +476,11 @@ for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m', '2-24m')){
     }
     tot_time<-nrow(plot.data)
     max.x<-max(((1:tot_time)-pre.vax.time[i]), na.rm=T)
-    matplot(post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data+1,type='l',yaxt='n', xlim=c(0, 48), xlab='months post-PCV introduction', ylim=c(-0.2,1.5), col='gray', lty=c(2,1,2), bty='l')
-    abline(h=1)
+    matplot(post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data+1,type='l',yaxt='n', xlim=c(0, 48), xlab='months post-PCV introduction', ylim=c(-0.2,1.5), col='black', lty=c(2,1,2), bty='l')
+    abline(h=1, col='gray')
     axis(side=2, at=c(0,0.5,1, 1.5, 2), las=1,labels=T)
-    # abline(v=0)
-    text(44, (0.4+j/3*1), final.rr,col=grp.cols[j])
+     abline(v=0)
+    text(44, 1.4, final.rr)
     title(countries[i])
   }
   dev.off()
