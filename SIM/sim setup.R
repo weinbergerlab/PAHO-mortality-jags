@@ -8,7 +8,7 @@
     print(ag.select)
     print(subnat)
 rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
-
+set.seed(123)
 library(RCurl)
 library(reshape2)
 library(lubridate)
@@ -230,4 +230,6 @@ saveRDS(combine.counts.array, file=paste0(output_directory,"sim.counts.", ag.sel
 
 
 
+#ALSO create a dataset that can be used in regular SC analysis
 
+#combine.counts

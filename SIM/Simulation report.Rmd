@@ -1,0 +1,108 @@
+---
+title: "Performance of pooling methods on simulated data"
+author: "Dan Weinberger"
+date: "January 11, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Simulation
+
+## Generate the simulated data. Use national-level mortality data from 10 countries in Latin America. Fit a hierarchical model, controlling for seasonalityand several control variables to pre-PCV data. Then extrapolate regression mean to post-PCV period. This is a counterfactual. Take the mean of this counterfactual, and add on a spline term that creates a 20% drop in 48 months in each country, with the timing of the change varying by country. Then draw Poisson counts from this value to get a count for each postvaccine time point and date. Then append this to the observed pre-vaccine counts, and use this in model 
+
+```{r setup}
+source('sim setup.R')
+```
+
+
+## Try to run a single stage hierarchical model with all 10 countries and pre-and post data, with changepoints to capture vaccine effect.
+
+```{r single.stage}
+source('sim run single stage model.R')
+```
+
+
+## Next run 2 stage model. 1st hierarchical synthetic controls model (fit just to pre data). Then calculate log(RR) or scaled rate-difference, and perform second stage model
+
+```{r stage1.sc}
+source('sim run sc model.R')
+```
+
+#### Then the 2nd stage model for the scaled risk difference (which approximates a rate ratio)
+```{r two.stage.scaled.rd}
+source('sim run sc model scaled.rd.2nd stage.R')
+
+#Plot the results
+par(mfrow=c(5,2), mar=c(4,2,1,1))
+for(i in 1:length(countries)){
+  # for(j in 1:N.states[i]){
+  plot.data<-t(preds.unbias.q[,,i])
+  if( abs(sum(plot.data, na.rm=T))>0){
+    plot.data<-plot.data[complete.cases(plot.data),]
+    final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
+                     ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
+                     round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
+  }
+  tot_time<-nrow(plot.data)
+  max.x<-max(((1:tot_time)-pre.vax.time[i]), na.rm=T)
+  matplot(post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data+1,type='l',yaxt='n', xlim=c(0, 48), xlab='months post-PCV introduction', ylim=c(-0.2,1.5), col='black', lty=c(2,1,2), bty='l')
+  abline(h=1, col='gray')
+  axis(side=2, at=c(0,0.5,1, 1.5, 2), las=1,labels=T)
+  abline(v=0)
+  text(44, 1.4, final.rr)
+  title(countries[i])
+}
+```
+
+### Then model log RR (with a continuity correction of 0.5)
+```{r two.stage.rr}
+source('sim run sc model log.rr.2nd stage.R')
+#Plot the results
+ par(mfrow=c(5,2), mar=c(4,2,1,1))
+  for(i in 1:length(countries)){
+    # for(j in 1:N.states[i]){
+    plot.data<-t(preds.unbias.q[,,i])
+    if( abs(sum(plot.data, na.rm=T))>0){
+      plot.data<-plot.data[complete.cases(plot.data),]
+      final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
+                       ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
+                       round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
+    }
+    tot_time<-nrow(plot.data)
+    max.x<-max(((1:tot_time)-pre.vax.time[i]), na.rm=T)
+    matplot(post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data+1,type='l',yaxt='n', xlim=c(0, 48), xlab='months post-PCV introduction', ylim=c(-0.2,1.5), col='black', lty=c(2,1,2), bty='l')
+    abline(h=1, col='gray')
+    axis(side=2, at=c(0,0.5,1, 1.5, 2), las=1,labels=T)
+     abline(v=0)
+    text(44, 1.4, final.rr)
+    title(countries[i])
+  }
+```
+
+### Same thing (log-RR) but with different continuity correction (0.05)
+```{r two.stage.rr.cont.correct.05}
+source('sim run sc model log.rr.2nd stage.R')
+#Plot the results
+ par(mfrow=c(5,2), mar=c(4,2,1,1))
+  for(i in 1:length(countries)){
+    # for(j in 1:N.states[i]){
+    plot.data<-t(preds.unbias.q[,,i])
+    if( abs(sum(plot.data, na.rm=T))>0){
+      plot.data<-plot.data[complete.cases(plot.data),]
+      final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
+                       ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
+                       round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
+    }
+    tot_time<-nrow(plot.data)
+    max.x<-max(((1:tot_time)-pre.vax.time[i]), na.rm=T)
+    matplot(post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data+1,type='l',yaxt='n', xlim=c(0, 48), xlab='months post-PCV introduction', ylim=c(-0.2,1.5), col='black', lty=c(2,1,2), bty='l')
+    abline(h=1, col='gray')
+    axis(side=2, at=c(0,0.5,1, 1.5, 2), las=1,labels=T)
+     abline(v=0)
+    text(44, 1.4, final.rr)
+    title(countries[i])
+  }
+```
