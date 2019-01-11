@@ -210,7 +210,7 @@ dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
   preds.unbias.q<-apply(reg_unbias_c,c(2,3),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
   dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
   
-  tiff(paste0(output_directory,'country.trend.log.rr.tiff'), width = 7, height = 8, units = "in",res=200)
+  tiff(paste0(output_directory,'country.trend.log.rr.0.05.tiff'), width = 7, height = 8, units = "in",res=200)
   par(mfrow=c(5,2), mar=c(4,2,1,1))
   for(i in 1:length(countries)){
     # for(j in 1:N.states[i]){
@@ -232,10 +232,10 @@ dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
   }
   dev.off()
   
-  saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.log.rr.rds"))
-  saveRDS(reg_unbias_c, file=paste0(output_directory, "reg_mean_unbias_with_pooling CP.log.rr.rds"))
+  saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias.log.rr.0.05.rds"))
+  saveRDS(reg_unbias_c, file=paste0(output_directory, "reg_mean_unbias_with_pooling CP.log.rr.0.05.rds"))
   #saveRDS(state.labels, file=paste0(output_directory,"state labels.rds"))
-  saveRDS(posterior_samples, file=paste0(output_directory, "posterior samples pooling with CP.log.rr.rds"))
+  saveRDS(posterior_samples, file=paste0(output_directory, "posterior samples pooling with CP.log.rr.0.05.rds"))
 
 
 

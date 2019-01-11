@@ -224,11 +224,30 @@ dev.off()
 #####Pointwise Rate ratio calculation
 #####################################
 rr<-array(NA, dim=dim(reg_unbias_c))
+rr.dynamic<-array(NA, dim=dim(reg_unbias_c))
+rr.0.05<-array(NA, dim=dim(reg_unbias_c))
 rd<-array(NA, dim=dim(reg_unbias_c))
 scaled.rd<-array(NA, dim=dim(reg_unbias_c))
+dynamic.correction<-array(NA, dim=dim(reg_unbias_c[,,,]))
 
 comb.pred.array<- abind(reg_unbias_c, log_reg_mean_c , along=5)
 outcome.array.reorder<-aperm(outcome.array, c(3,1,2)) #Change dimension order of array, and add dimension to match comb.pred.array
+
+#str(log_reg_mean_c[k,,,])
+#mean.counts<- apply(exp(log_reg_mean_c), c(3), mean, na.rm=T) #Mean counts by country
+
+#Continuity corrections that minimize bias basd on a simulation https://github.com/weinbergerlab/continuity-correction
+dynamic.correction[exp(log_reg_mean_c) >=4]<-0.5
+dynamic.correction[exp(log_reg_mean_c) <4 & exp(log_reg_mean_c)>=3 ]<-0.4 
+dynamic.correction[exp(log_reg_mean_c) <3 & exp(log_reg_mean_c)>=2 ]<-0.3 
+dynamic.correction[exp(log_reg_mean_c) <2 & exp(log_reg_mean_c)>=1 ]<-0.2 
+dynamic.correction[exp(log_reg_mean_c) <1 & exp(log_reg_mean_c)>=0.5 ]<-0.08 
+dynamic.correction[exp(log_reg_mean_c) <0.5 & exp(log_reg_mean_c)>=0.4 ]<-0.04  
+dynamic.correction[exp(log_reg_mean_c) <0.4 & exp(log_reg_mean_c)>=0.3 ]<-0.02  
+dynamic.correction[exp(log_reg_mean_c) <0.3 & exp(log_reg_mean_c)>=0.2 ]<-0.01 
+dynamic.correction[exp(log_reg_mean_c) <0.2 & exp(log_reg_mean_c)>=0.1 ]<-0.001  
+dynamic.correction[exp(log_reg_mean_c) <0.1 & exp(log_reg_mean_c)>=0.05 ]<-0.00001
+dynamic.correction[exp(log_reg_mean_c) <0.05 & exp(log_reg_mean_c)>=0.01 ]<-0.00001
 
 #Noteif using multiple states, need to modify this
 for(k in 1:dim(reg_unbias_c)[1]){
@@ -236,10 +255,13 @@ for(k in 1:dim(reg_unbias_c)[1]){
   rr.0.05[k,,,]<-(outcome.array.reorder[,,1]+0.05)/(reg_unbias_c[k,,,]+0.05)
   rd[k,,,]<-(outcome.array.reorder[,,1])-(reg_unbias_c[k,,,])
   scaled.rd[k,,,]<- 1- ( reg_unbias_c[k,,,]-outcome.array.reorder[,,1])/exp(log_reg_mean_c[k,,,]) # 1-(exp-obs)/mu1
+  rr.dynamic[k,,,]<-(outcome.array.reorder[,,1]+dynamic.correction[k,,])/(reg_unbias_c[k,,,]+dynamic.correction[k,,])
 }
+
  
 rr.q<-apply(rr,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 rr.0.05.q<-apply(rr.0.05,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
+rr.dynamic.q<-apply(rr.dynamic,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 
 scaled.rd.q<-apply(scaled.rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 rd.q<-apply(rd,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
@@ -248,14 +270,18 @@ plot(rr.q[2,,,],scaled.rd.q[2,,,], main='Median RR estimates w/ and w/o continui
 
 log.rr.sd<-apply(log(rr),c(2,3,4),sd,na.rm=TRUE)
 log.rr.0.05.sd<-apply(log(rr.0.05.q),c(2,3,4),sd,na.rm=TRUE)
+log.rr.dynamic.sd<-apply(log(rr.dynamic.q),c(2,3,4),sd,na.rm=TRUE)
 
 scaled.rd.sd<-apply(scaled.rd,c(2,3,4),sd,na.rm=TRUE)
 
 dimnames(rr.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 dimnames(rr.0.05.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 dimnames(rd.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
+dimnames(rr.dynamic)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 
 log.rr.q<-log(rr.q)
+log.rr.0.05.q<-log(rr.0.05.q)
+log.rr.dynamic.q<-log(rr.dynamic.q)
 
 tiff(paste0(output_directory,'rd.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(2,2,1,1))
@@ -267,7 +293,7 @@ for(i in 1: length(countries)){
 }
 dev.off()
 
-tiff(paste0(output_directory,'rr.nont.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+tiff(paste0(output_directory,'scaled.rd.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(2,2,1,1))
 for(i in 1: length(countries)){
   matplot(t(scaled.rd.q[,,i,1]), type='l', col='gray', lty=c(2,1,2), ylim=c(-1,3) ,bty='l')
@@ -287,6 +313,26 @@ for(i in 1: length(countries)){
 }
 dev.off()
 
+tiff(paste0(output_directory,'rr.0.05.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(log.rr.0.05.q[,,i,1]), type='l', col='gray', lty=c(2,1,2),ylim=c(-1.0,1.5), bty='l')
+  title(paste0("Rate Ratio ",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=0, lty=2, col='red')
+}
+dev.off()
+
+tiff(paste0(output_directory,'rr.dynamic.',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(log.rr.dynamic.q[,,i,1]), type='l', col='gray', lty=c(2,1,2),ylim=c(-1.0,1.5), bty='l')
+  title(paste0("Rate Ratio With Dynamic Cont Correct.",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=0, lty=2, col='red')
+}
+dev.off()
+
 saveRDS(log.rr.q, file=paste0(output_directory,"log.rr.q_", ag.select,".rds"))
 saveRDS(scaled.rd.q, file=paste0(output_directory,"scaled.rd.q_", ag.select,".rds"))
 saveRDS(scaled.rd.sd, file=paste0(output_directory,"scaled.rd.sd_", ag.select,".rds"))
@@ -294,4 +340,7 @@ saveRDS(log.rr.sd, file=paste0(output_directory,"log.rr.sd_", ag.select,".rds"))
 
 saveRDS(log.rr.0.05.q, file=paste0(output_directory,"log.rr.0.05.q_", ag.select,".rds"))
 saveRDS(log.rr.0.05.sd, file=paste0(output_directory,"log.rr.0.05.sd_", ag.select,".rds"))
+
+saveRDS(log.rr.dynamic.q, file=paste0(output_directory,"log.rr.0.05.q_", ag.select,".rds"))
+saveRDS(log.rr.dynamic.sd, file=paste0(output_directory,"log.rr.0.05.sd_", ag.select,".rds"))
 

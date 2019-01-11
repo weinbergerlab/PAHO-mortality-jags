@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
 ```
 
 ## Simulation
@@ -27,8 +27,34 @@ source('sim run single stage model.R')
 
 ## Next run 2 stage model. 1st hierarchical synthetic controls model (fit just to pre data). Then calculate log(RR) or scaled rate-difference, and perform second stage model
 
-```{r stage1.sc}
+```{r stage1.sc,width = 7, height = 8}
 source('sim run sc model.R')
+
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(log.rr.q[,,i,1]), type='l', col='gray', lty=c(2,1,2),ylim=c(-1.0,1.5), bty='l')
+  title(paste0("Rate Ratio (cont correct 0.5)",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=0, lty=2, col='red')
+}
+
+
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(log.rr.0.05.q[,,i,1]), type='l', col='gray', lty=c(2,1,2),ylim=c(-1.0,1.5), bty='l')
+  title(paste0("Rate Ratio (cont correct 0.05)",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=0, lty=2, col='red')
+}
+
+par(mfrow=c(5,2), mar=c(2,2,1,1))
+for(i in 1: length(countries)){
+  matplot(t(scaled.rd.q[,,i,1]), type='l', col='gray', lty=c(2,1,2), ylim=c(-1,3) ,bty='l')
+  title(paste0("Scaled Rate Difference ",countries[i]))
+  abline(v=n.times.pre[i], lty=2, col='red')
+  abline(h=1, lty=2, col='red')
+}
+
 ```
 
 #### Then the 2nd stage model for the scaled risk difference (which approximates a rate ratio)
