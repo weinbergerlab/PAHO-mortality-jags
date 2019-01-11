@@ -52,7 +52,7 @@ prelog_data$intro.date[prelog_data$country=='dr'] <-as.Date('2013-09-01')
 prelog_data$intro.date[prelog_data$country=='ec'] <-as.Date('2010-08-01')
 prelog_data$intro.date[prelog_data$country=='gy'] <-as.Date('2011-01-01')
 prelog_data$intro.date[prelog_data$country=='hr'] <-as.Date('2011-01-01')
-prelog_data$intro.date[prelog_data$country=='mx'] <-as.Date('2008-01-01')
+prelog_data$intro.date[prelog_data$country=='mx' |prelog_data$country=='mxA' ] <-as.Date('2008-01-01')
 prelog_data$intro.date[prelog_data$country=='nc'] <-as.Date('2011-01-01')
 prelog_data$intro.date[prelog_data$country=='pr']  <-as.Date('2009-08-01') 
 prelog_data$interval.date<- prelog_data$intro.date %--% prelog_data$monthdate
