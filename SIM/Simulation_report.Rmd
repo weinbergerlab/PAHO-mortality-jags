@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Generate the simulated data. Use national-level mortality data from 10 countries in Latin America. Fit a hierarchical model, controlling for seasonalityand several control variables to pre-PCV data. Then extrapolate regression mean to post-PCV period. This is a counterfactual. Take the mean of this counterfactual, and add on a spline term that creates a 20% drop in 48 months in each country, with the timing of the change varying by country. Then draw Poisson counts from this value to get a count for each postvaccine time point and date. Then append this to the observed pre-vaccine counts, and use this in model 
 
-```{r setup}
+```{r setup.data}
 source('sim setup.R')
 ```
 
