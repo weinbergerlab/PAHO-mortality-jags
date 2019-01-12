@@ -20,9 +20,9 @@ for(v in 1:n.pre[i,j]){
     #####################
     log(mu[i,j,v])<-(beta[i,j,1] 
     + beta[i,j,2]*x[i,j,v,2]
-    + beta[i,j,3]*x[i,j,v,3]
-    + beta[i,j,4]*x[i,j,v,4]
-    + beta[i,j,5]*x[i,j,v,5]
+    # + beta[i,j,3]*x[i,j,v,3]
+    # + beta[i,j,4]*x[i,j,v,4]
+    # + beta[i,j,5]*x[i,j,v,5]
     + month.dummy[i,j,v,1] * delta[i,j,1] + month.dummy[i,j,v,2] * delta[i,j,2]
     + month.dummy[i,j,v,3] * delta[i,j,3] + month.dummy[i,j,v,4] * delta[i,j,4]
     + month.dummy[i,j,v,5] * delta[i,j,5] + month.dummy[i,j,v,6] * delta[i,j,6]
@@ -40,9 +40,9 @@ for(u in 1:n[i,j]){
   #####################
 log.pred.mu[i,j,u]<-(beta[i,j,1] 
 + beta[i,j,2]*x[i,j,u,2]
-+ beta[i,j,3]*x[i,j,u,3]
-+ beta[i,j,4]*x[i,j,u,4]
-+ beta[i,j,5]*x[i,j,u,5]
+#+ beta[i,j,3]*x[i,j,u,3]
+# + beta[i,j,4]*x[i,j,u,4]
+# + beta[i,j,5]*x[i,j,u,5]
 + month.dummy[i,j,u,1] * delta[i,j,1] + month.dummy[i,j,u,2] * delta[i,j,2]
 + month.dummy[i,j,u,3] * delta[i,j,3] + month.dummy[i,j,u,4] * delta[i,j,4]
 + month.dummy[i,j,u,5] * delta[i,j,5] + month.dummy[i,j,u,6] * delta[i,j,6]
@@ -65,7 +65,7 @@ sd.disp[i,j]~dunif(0,100)
 ###########################################################
 #Second Stage Statistical Model
 ###########################################################
-beta[i,j, 1:5] ~ dmnorm(lambda[1:5], Omega_inv[1:5, 1:5])
+beta[i,j, 1:3] ~ dmnorm(lambda[1:3], Omega_inv[1:3, 1:3])
 delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parameters
 
 }
@@ -77,13 +77,13 @@ delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parame
 #######################################################
 #Remaining Prior Distributions
 #######################################################
-Omega_inv[1:5, 1:5] ~ dwish(I_Omega[1:5, 1:5], (5 + 1))
-Omega[1:5, 1:5]<-inverse(Omega_inv[1:5, 1:5])
+Omega_inv[1:3, 1:3] ~ dwish(I_Omega[1:3, 1:3], (3 + 1))
+Omega[1:3, 1:3]<-inverse(Omega_inv[1:3, 1:3])
 
 Omicron_inv[1:11, 1:11] ~ dwish(I_Omicron[1:11, 1:11], (11 + 1))
 Omicron[1:11, 1:11]<-inverse(Omicron_inv[1:11, 1:11])
 
-for(j in c(1:5)){
+for(j in c(1:3)){
 lambda[j] ~ dnorm(0, 1e-4)
 }
 for(k in c(1:11)){

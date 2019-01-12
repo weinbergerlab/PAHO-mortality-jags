@@ -125,7 +125,7 @@ n.times.pre=apply(outcome.array.pre,c(1,2), function(x) sum(!is.na(x))) #Vector 
 N.states.country<-apply(n.times,1, function(x) sum(x!=0)  )
 
 N.preds=3 #N predictors ( intercept, acm_noj, post-vax time trend)
-q=6  #N predictors of slopes (if none, set to 1 for int only)
+q=3  #N predictors of slopes (if none, set to 1 for int only)
 # I_Sigma<-replicate( N.countries, diag(N.preds) )
 I_Sigma<-diag(N.preds) 
 I_Omega<-diag(q)
