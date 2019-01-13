@@ -260,7 +260,7 @@ sim.counts<-readRDS( file=paste0(input.dir,"sim.counts.", ag.select,".rds"))
       # for(j in 1:N.states[i]){
       for(j in c(1:dim(preds.unbias.q)[4])){
         plot.data<-t(preds.unbias.q[,,i,j])
-        if( abs(sum(plot.data, na.rm=T))>0){
+        #if( abs(sum(plot.data, na.rm=T))>0){
           plot.data<-plot.data[complete.cases(plot.data),]
           final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
                            ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
@@ -273,7 +273,7 @@ sim.counts<-readRDS( file=paste0(input.dir,"sim.counts.", ag.select,".rds"))
           axis(side=2, at=c(-1,-0.7,-0.35,0,0.35,0.7,1), las=1,labels=round(exp(c(-1.0,-0.7,-0.35,0,0.35,0.7,1.0)),1 ))
           # abline(v=0)
           title(countries[i])
-        }
+       # }
       }
     }
     dev.off()

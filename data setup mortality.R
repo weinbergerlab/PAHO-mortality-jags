@@ -104,10 +104,13 @@ for(i in c(1:11)){
 
 #Combine covariate array with intercept along 4th dimension
 int.array<-array(1, dim(control1.array))
-control1.array.int<-abind(int.array,control1.array,control2.array, control3.array, control4.array, along=4 )
-dimnames(control1.array.int)[[4]]<-c('Intercept','ACM',"A00","P00", "E00")
+#control1.array.int<-abind(int.array,control1.array,control2.array, control3.array, control4.array, along=4 )
+control1.array.int<-abind(int.array,control1.array, along=4 )
+dimnames(control1.array.int)[[4]]<-c('Intercept','ACM')
+#dimnames(control1.array.int)[[4]]<-c('Intercept','ACM',"A00","P00", "E00")
 control1.array.int2<-abind(control1.array.int,post.index.array, along=4 )
-dimnames(control1.array.int2)[[4]]<-c('Intercept','ACM',"A00","P00", "E00","post.index")
+#dimnames(control1.array.int2)[[4]]<-c('Intercept','ACM',"A00","P00", "E00","post.index")
+dimnames(control1.array.int2)[[4]]<-c('Intercept','ACM',"post.index")
 
 #Create variables to be used by JAGS
 N.countries=dim(control1.array.int2)[1]
@@ -117,7 +120,7 @@ n.times.pre=apply(outcome.array.pre,c(1,2), function(x) sum(!is.na(x))) #Vector 
 N.states.country<-apply(n.times,1, function(x) sum(x!=0)  )
 
 N.preds=3 #N predictors ( intercept, acm_noj, post-vax time trend)
-q=6  #N predictors of slopes (if none, set to 1 for int only)
+q=2  #N predictors of slopes (if none, set to 1 for int only)
 # I_Sigma<-replicate( N.countries, diag(N.preds) )
 I_Sigma<-diag(N.preds) 
 I_Omega<-diag(q)

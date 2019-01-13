@@ -63,7 +63,7 @@ sd.disp[i,j]~dunif(0,100)
 ###########################################################
 #Second Stage Statistical Model
 ###########################################################
-beta[i,j, 1:3] ~ dmnorm(lambda[1:3], Omega_inv[1:3, 1:3])
+beta[i,j, 1:2] ~ dmnorm(lambda[1:2], Omega_inv[1:2, 1:2])
 delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parameters
 
 }
@@ -75,13 +75,13 @@ delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parame
 #######################################################
 #Remaining Prior Distributions
 #######################################################
-Omega_inv[1:3, 1:3] ~ dwish(I_Omega[1:3, 1:3], (3 + 1))
-Omega[1:3, 1:3]<-inverse(Omega_inv[1:3, 1:3])
+Omega_inv[1:2, 1:2] ~ dwish(I_Omega[1:2, 1:2], (2 + 1))
+Omega[1:2, 1:2]<-inverse(Omega_inv[1:2, 1:2])
 
 Omicron_inv[1:11, 1:11] ~ dwish(I_Omicron[1:11, 1:11], (11 + 1))
 Omicron[1:11, 1:11]<-inverse(Omicron_inv[1:11, 1:11])
 
-for(j in c(1:3)){
+for(j in c(1:2)){
 lambda[j] ~ dnorm(0, 1e-4)
 }
 for(k in c(1:11)){
@@ -102,7 +102,6 @@ model_jags<-jags.model(textConnection(model_string),
                                  'n.pre' = n.times.pre, 
                                  'p' = N.preds, #predictors of outcome
                                  'q' = q,  #predictors of slope
-                                 'm' = m,
                                  'Y' = outcome.array.pre,
                                  'O' = offset,
                                  'z' =     z   ,

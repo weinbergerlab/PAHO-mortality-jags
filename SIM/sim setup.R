@@ -124,7 +124,7 @@ n.times.pre=apply(outcome.array.pre,c(1,2), function(x) sum(!is.na(x))) #Vector 
 N.states.country<-apply(n.times,1, function(x) sum(x!=0)  )
 
 N.preds=3 #N predictors ( intercept, acm_noj, post-vax time trend)
-q=3  #N predictors of slopes (if none, set to 1 for int only)
+q=2  #N predictors of slopes (if none, set to 1 for int only)
 # I_Sigma<-replicate( N.countries, diag(N.preds) )
 I_Sigma<-diag(N.preds) 
 I_Omega<-diag(q)
@@ -161,7 +161,7 @@ saveRDS(aux.output1, file=paste0(output_directory,"in.data.", ag.select,".rds"),
 
 ###########################
 #Call JAGS Model
-source('model.R')
+source('model.setup.R')
 ##########################
 
 
@@ -192,6 +192,9 @@ preds.q<-apply(reg_mean_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE
 dimnames(preds.q)[[2]]<- as.numeric(as.character(dimnames(preds.q)[[2]]))
 preds.q<-preds.q[,order(as.numeric(dimnames(preds.q)[[2]])),order(as.numeric(dimnames(preds.q)[[3]])),]
 
+#Extract the SD of the overdispersion parameter sd.disp
+sd.disp<-posterior_samples[[1]][,grep("sd.disp",dimnames(posterior_samples[[1]])[[2]])]
+sd.disp.country<-apply(sd.disp,2,median)
 
 #For each country, have decline, that varies in magnitude
 dur.decline<-24 #how long does it take to achieve max effect from change point 1 to change point 2
@@ -211,9 +214,14 @@ for(i in 1:length(countries)){
     + step1(post.index.array[i,j,v] - cp2[i,j])*beta.fix*(cp2[i,j] - cp1[i,j]) )
   }
 }
-matplot(t(vax.effect[,1,]))
 
-log.pred.mu.vax<- preds.q['50%',,] +  t(vax.effect[,1,])
+log.pred.mu.vax<-array(NA, dim=dim(preds.q['50%',,]))
+#Add prediction mean+ vaccine effect + random overdisperion that is specific for teach country
+for(i in 1:length(countries)){
+  disp1<-rnorm(n=length(preds.q['50%',,i]),mean=0, sd=sd.disp.country[i])
+log.pred.mu.vax[,i]<- preds.q['50%',,i] +  t(vax.effect[i,1,]) + disp1 
+}
+
 pred.count.vax<-rpois(n=length(log.pred.mu.vax),lambda=exp(log.pred.mu.vax)) #gives error when try to simulate from NA is OK
 pred.count.vax<-array(pred.count.vax, dim=dim(log.pred.mu.vax))
 
@@ -225,9 +233,6 @@ combine.counts<-matrix(NA, nrow=nrow(pred.count.vax), ncol=ncol(pred.count.vax))
 combine.counts[post.index.array.t==0]<- outcome.array.t[post.index.array.t==0]
 combine.counts[post.index.array.t>0]<- pred.count.vax[post.index.array.t>0]
   
-matplot(combine.counts, type='l')
-
-
 combine.counts.array<-array(NA, dim=dim(outcome.array))
 combine.counts.array[,1,]<-t(combine.counts)
 

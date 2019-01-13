@@ -16,6 +16,11 @@ Use national-level mortality data from 10 countries in Latin America. Fit a hier
 
 ```{r setup.data}
 source('sim setup.R')
+
+matplot(t(vax.effect[,1,]), type='l', bty='l', main='True Effect oif vaccine')
+
+matplot(combine.counts, type='l',bty='l',main='Simulated data')
+
 ```
 
 
