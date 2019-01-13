@@ -1,8 +1,9 @@
 ##Test model with hospitalization data
 
-for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m', '2-23m')){
-#for(ag.select in c('12-23m','24-59m','<2m', '2-23m')){
-  for(subnat in c(FALSE, TRUE)){
+#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m', '2-23m')){
+ ag.select <- c('2-11m','12-23m','24-59m','<2m' )
+    subnat=F
+  #for(subnat in c(FALSE, TRUE)){
     print(ag.select)
     print(subnat)
 rm(list=ls()[-which(ls() %in% c('ag.select', 'subnat'))]) #for instance 
@@ -24,8 +25,12 @@ prelog_data <- read.csv(data_file, check.names = FALSE)# IF IMPORTING FROM URL
 
 #Filter to obtain relevant age groups
 #prelog_data<-prelog_data[substr(prelog_data$age_group,4,8)==ag.select,]  #Only <12m
-prelog_data<-prelog_data[grep(ag.select,prelog_data$age_group ),]
-if(ag.select=='2-23m'){ prelog_data<-prelog_data[!grepl('12-23m',prelog_data$age_group ),]}
+prelog_data<-prelog_data[c(grep('<2m',prelog_data$age_group ),
+                         grep('2-11m',prelog_data$age_group ),
+                         grep('12-23m',prelog_data$age_group ), 
+                         grep('24-59m',prelog_data$age_group )
+                          )
+                         ,]
 
 if(subnat){
   prelog_data<-prelog_data[!grepl(' A',prelog_data$age_group ),]  #filter out summary categories
@@ -35,13 +40,14 @@ if(subnat){
   prelog_data<-prelog_data[grepl(' A',prelog_data$age_group ),]  #filter out summary categories
   output_directory <- 'C:/Users/dmw63/Desktop/My documents h/PAHO mortality/jags cp results/nat'   #Directory where results will be saved.
 }
-if(ag.select=='<2m'){ ag.select<-'u2m'}
-output_directory <- paste(output_directory,  '/',ag.select, '.single.model' ,'/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
+output_directory <- paste(output_directory,  '/', '.single.model.all.ages' ,'/', sep = '')                     #Adds a subfolder to output directory to organize results by date and time run.
 dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
+
 
 prelog_data<-prelog_data[,c('age_group', 'monthdate','J12_J18_prim','acm_noj_prim' )]
 prelog_data$monthdate<-as.Date(prelog_data$monthdate)
 prelog_data$country<-substr(prelog_data$age_group,1,2)
+prelog_data$agec<-word(prelog_data$age_group,start=2)
 
 ##Set Vax intro date for each country
 prelog_data$intro.date<-as.Date('1900-01-01')
@@ -72,24 +78,24 @@ prelog_data_spl<-split(prelog_data, prelog_data$age_group)
 prelog_data_spl<-lapply(prelog_data_spl, function(x) cbind.data.frame(x,index=1:nrow(x) )  )
 prelog_data_spl<-do.call("rbind", prelog_data_spl)
 prelog_data_spl<-split(prelog_data_spl, prelog_data_spl$country)
-prelog_data_spl<-lapply(prelog_data_spl, function(x) cbind.data.frame(x,grp.index=as.numeric(factor(x$hdi)) ))  
+prelog_data_spl<-lapply(prelog_data_spl, function(x) cbind.data.frame(x,agec.index=as.numeric(factor(x$agec)) ))  
 prelog_data_spl<-do.call("rbind", prelog_data_spl)
-prelog_data_spl
-hdi.index<-unique(cbind.data.frame(prelog_data_spl$country, prelog_data_spl$grp.index, prelog_data_spl$hdi))
-names(hdi.index)<-c('country','grp.index','hdi')
+#prelog_data_spl
+age.index<-unique(cbind.data.frame(prelog_data_spl$country, prelog_data_spl$agec.index, prelog_data_spl$agec))
+names(age.index)<-c('country','agec.index','age')
 prelog_data_spl$country_index<-as.numeric(as.factor(prelog_data_spl$country))
-prelog_data_spl<-prelog_data_spl[,c( 'index','country_index','grp.index',"J12_J18_prim","acm_noj_prim","post.index","monthdate")]
+prelog_data_spl<-prelog_data_spl[,c( 'index','country_index','agec.index',"J12_J18_prim","acm_noj_prim","post.index","monthdate")]
 
 #Reshape data into 3D arrays--separate arrays for outcome, controls, time index
-ds.m<-melt(prelog_data_spl,id.vars=c( 'index','country_index','grp.index'))
-outcome.array<- acast(ds.m[ds.m$variable=="J12_J18_prim",], country_index~grp.index~index )   #Outcome array
-control1.array<- acast(ds.m[ds.m$variable=="acm_noj_prim",],  country_index~grp.index~index )  #Control array
+ds.m<-melt(prelog_data_spl,id.vars=c( 'index','country_index','agec.index'))
+outcome.array<- acast(ds.m[ds.m$variable=="J12_J18_prim",], country_index~agec.index~index )   #Outcome array
+control1.array<- acast(ds.m[ds.m$variable=="acm_noj_prim",],  country_index~agec.index~index )  #Control array
 control1.array<-log(control1.array+0.5) #Log transform
-post.index.array <- acast(ds.m[ds.m$variable=="post.index",],  country_index~grp.index~index ) #time index array
+post.index.array <- acast(ds.m[ds.m$variable=="post.index",],  country_index~agec.index~index ) #time index array
 post.index.array[post.index.array<0]<-0 #Pre-vax indices are 0
 post.index.array<-post.index.array/max.time.points
 
-date.array<- as.Date(acast(ds.m[ds.m$variable=="monthdate",], country_index~grp.index~index ),origin="1970-01-01")   #Outcome array
+date.array<- as.Date(acast(ds.m[ds.m$variable=="monthdate",], country_index~agec.index~index ),origin="1970-01-01")   #Outcome array
 month.array<-array(month(date.array)   , dim=dim(date.array))
 month.dummy<-array(NA, dim=c(dim(month.array),11))
 for(i in c(1:11)){
