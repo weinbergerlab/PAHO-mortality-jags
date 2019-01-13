@@ -113,27 +113,27 @@ N.countries=dim(control1.array.int2)[1]
 n.times=apply(outcome.array,c(1,2), function(x) sum(!is.na(x))) #Vector (or matrix) giving number of non-missing observations per state
 N.states.country<-apply(n.times,1, function(x) sum(x!=0)  )
 
-N.preds=3 #N predictors ( intercept, acm_noj, post-vax time trend)
-q=6  #N predictors of slopes (if none, set to 1 for int only)
+N.preds=5 #N predictors ( intercept, acm_noj, CPs, slope on CP)
+q=4  #N predictors of slopes (if none, set to 1 for int only; 3 age dummies+int=4)
 # I_Sigma<-replicate( N.countries, diag(N.preds) )
 I_Sigma<-diag(N.preds) 
-I_Omega<-diag(q)
+I_Omega<-diag(N.preds)
 I_Omicron<-diag(11)
+I_Sigma2<-diag(11) 
+
 
 #Z needs to be an array i,j,q ; with assignment of covariate based on hdi.index df
+#This creates the dummy matrix needed for the model
 z<-array(0, dim=c(N.countries, max(N.states.country),q))
 z[,,1]<-1 #intercept for z 
-hdi.index$hdi.countryN<- as.numeric(as.factor(hdi.index$country))
-for(i in 1:N.countries){
-  for(j in 1:N.states.country[i]){
-   hdi.countryN<- as.numeric(as.factor(hdi.index$country))
-  if( sum(hdi.countryN==i & hdi.index$grp.index==j  & hdi.index$hdi=='Lo')>0){  
-      z[i,j,2]<-1
-  }else{if(sum(hdi.index$hdi.countryN==i & hdi.index$grp.index==j  & hdi.index$hdi=='Me')>0){
-    z[i,j,3]<-1
-  }}
+age.index$age.countryN<- as.numeric(as.factor(age.index$country))
+  for(j in 1:N.countries){
+    for(k in 2:N.states.country[j]){
+     # for(i in 2:q){
+  z[j,k,k]<-1
+    }
   }
-}
+z[1,,] #check matrix for country 1
 
 m<-1 
 w<-matrix(NA, nrow=N.countries, ncol=m) 

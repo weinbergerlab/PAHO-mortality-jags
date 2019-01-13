@@ -48,29 +48,59 @@ cp2[i,j]<-cp1[i,j] +cp2.add[i,j]  + 1/max.time.points   #ensure Cp2 is at least 
 ###########################################################
 #Second Stage Statistical Model
 ###########################################################
-beta[i,j, 1:5] ~ dmnorm(lambda[1:5], Omega_inv[1:5, 1:5])
-delta[i,j, 1:11] ~ dmnorm(theta[1:11], Omicron_inv[1:11, 1:11]) #Seasonal parameters
+beta[i,j, 1:p] ~ dmnorm(mu1[i,j, 1:p], Omega_inv[1:p, 1:p])
+for(k in 1:p){
+    mu1[i,j,k] <- z[i,j, 1:q]%*%gamma[i,k, 1:q] #ts-level intercept,slope,covar, change pints
+}
+
+delta[i,j, 1:11] ~ dmnorm(theta[i,1:11], Omicron_inv[1:11, 1:11]) #Seasonal parameters
 
 }
 ########################################################
 #Third Stage Statistical Model
 ########################################################
-#gamma[i, 1:5] ~ dmnorm(lambda[1:5], Sigma_inv[1:5, 1:5])
+for(k in 1:p){
+#gamma[i, 1:5] ~ dmnorm(lambda[1:q], Sigma_inv[1:q, 1:q])
+ gamma[i,k, 1:q] ~ dmnorm(mu2[i,k, 1:q], Sigma_inv[k, 1:q, 1:q])
+  for(l in 1:q){
+    mu2[i,k,l] <- w[i, 1:m]%*%theta2[k,l, 1:m] #no country-level predictor *int only
 }
+}
+}
+
 #######################################################
 #Remaining Prior Distributions
 #######################################################
 Omega_inv[1:5, 1:5] ~ dwish(I_Omega[1:5, 1:5], (5 + 1))
 Omega[1:5, 1:5]<-inverse(Omega_inv[1:5, 1:5])
 
+
+
+for(k in 1:p){
+for(l in 1:q){
+  for(r in 1:m){
+theta2[k,l,r] ~ dnorm(0, 0.0001)
+}
+}
+
+Sigma_inv[k,1:q, 1:q] ~ dwish(I_Sigma[1:q, 1:q], (q + 1))
+Sigma[k,1:q, 1:q]<-inverse(Sigma_inv[k,1:q, 1:q])
+}
+
 Omicron_inv[1:11, 1:11] ~ dwish(I_Omicron[1:11, 1:11], (11 + 1))
 Omicron[1:11, 1:11]<-inverse(Omicron_inv[1:11, 1:11])
+
+Sigma_inv2[1:11, 1:11] ~ dwish(I_Sigma2[1:11, 1:11], (11 + 1))
+Sigma2[1:11, 1:11]<-inverse(Sigma_inv2[1:11, 1:11])
 
 for(j in c(1:5)){
 lambda[j] ~ dnorm(0, 1e-4)
 }
 for(k in c(1:11)){
-theta[k] ~ dnorm(0, 1e-4)
+for(i in 1:c){
+theta[i,k]~dnorm(0,1e-4)
+}
+  lambda2[k] ~ dnorm(0, 1e-4)
 }
 
 }
@@ -96,7 +126,8 @@ model_jags<-jags.model(textConnection(model_string),
                                  'w' = w,
                                  'I_Sigma' = I_Sigma,
                                  'I_Omega' = I_Omega,
-                                 'I_Omicron'=I_Omicron
+                                 'I_Omicron'=I_Omicron,
+                                 'I_Sigma2'=I_Sigma2
                                  )) 
 
 update(model_jags, 
