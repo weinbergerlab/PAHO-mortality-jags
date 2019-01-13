@@ -1,7 +1,7 @@
 ##Test model with hospitalization data
 
-#for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
-for(ag.select in c('2-11m','12-23m','24-59m','<2m', '2-23m')){
+for(ag.select in c('2-59m','2-11m','12-23m','24-59m','<2m')){
+#for(ag.select in c('2-11m','12-23m','24-59m','<2m', '2-23m')){
   for(subnat in c(FALSE)){
     print(ag.select)
     print(subnat)
