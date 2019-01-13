@@ -134,7 +134,7 @@ update(model_jags,
        n.iter=20000) 
 
 posterior_samples<-coda.samples(model_jags, 
-                                variable.names=c('log_rr_estimate', 'mu',"beta", 'lambda'),
+                                variable.names=c('log_rr_estimate', 'mu',"beta", 'lambda', 'gamma','theta2'),
                                 
                                 thin=1,
                                 n.iter=50000)

@@ -261,12 +261,12 @@ for(i in 1:length(countries)){
   # for(j in 1:N.states[i]){
   for(j in c(1:dim(preds.unbias.q)[4])){
   plot.data<-t(preds.unbias.q[,,i,j])
-  if( abs(sum(plot.data, na.rm=T))>0){
+  #if( abs(sum(plot.data, na.rm=T))>0){
     plot.data<-plot.data[complete.cases(plot.data),]
     final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
                     ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
                      round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
-  matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,, drop=F],type='l',yaxt='n',add=(j>1),ylim=c(-1.0,1.0), xlim=c(0.1, max.time.points), 
+  matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,2, drop=F],type='l',yaxt='n',add=(j>1),ylim=c(-1.0,1.0), xlim=c(0.1, max.time.points), 
            xlab='months post-PCV introduction',  
            col=grp.cols[j], lty=c(2,1,2), bty='l')
   abline(h=0,col='gray')
@@ -276,11 +276,10 @@ for(i in 1:length(countries)){
   title(countries[i])
       }
   }
-}
+#}
 dev.off()
 saveRDS(preds.unbias.q, file=paste0(output_directory,"reg_mean_with_pooling CP nobias", ag.select,".rds"))
 
-  }
-}
+
 
 
