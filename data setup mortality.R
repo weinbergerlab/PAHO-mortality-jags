@@ -254,6 +254,7 @@ reg_unbias_c<-reg_unbias_c[,order(as.numeric(dimnames(reg_unbias_c)[[2]])),order
 preds.unbias.q<-apply(reg_unbias_c,c(2,3,4),quantile, probs=c(0.025,0.5,0.975),na.rm=TRUE)
 dimnames(preds.unbias.q)[[2]]<- as.numeric(as.character(dimnames(preds.unbias.q)[[2]]))
 
+preds.unbias.q['50%',,3,]
 grp.cols<-c('black','#1b9e77',  '#d95f02',  '#7570b3')
 tiff(paste0(output_directory,'subnat.rr',ag.select,'.tiff'), width = 7, height = 8, units = "in",res=200)
 par(mfrow=c(5,2), mar=c(4,2,1,1))
@@ -266,11 +267,13 @@ for(i in 1:length(countries)){
     final.rr<-paste0(round(exp(plot.data[nrow(plot.data),'50%', drop=F]),2),
                     ' (' ,round(exp(plot.data[nrow(plot.data),'2.5%', drop=F]),2),',',
                      round(exp(plot.data[nrow(plot.data),'97.5%', drop=F]),2),")")
-  matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,2, drop=F],type='l',yaxt='n',add=(j>1),ylim=c(-1.0,1.0), xlim=c(0.1, max.time.points), 
+  matplot( post.index.array[i,1,][1:nrow(plot.data)]*max.time.points, plot.data[,2, drop=F],type='l',yaxt='n',add=(j>1),
+           ylim=c(-1.0,1.6), xlim=c(0.1, max.time.points), 
            xlab='months post-PCV introduction',  
-           col=grp.cols[j], lty=c(2,1,2), bty='l')
+           col=grp.cols[j], lty=c(1,1,1), bty='l')
   abline(h=0,col='gray')
-  text(44, (0.4+j/3*1), final.rr,col=grp.cols[j])
+  lab.pos<-c(0.1,0.5,1.0,1.5)
+  text(44, lab.pos[j], final.rr,col=grp.cols[j], cex=0.9)
   axis(side=2, at=c(-1,-0.7,-0.35,0,0.35,0.7,1), las=1,labels=round(exp(c(-1.0,-0.7,-0.35,0,0.35,0.7,1.0)),1 ))
   # abline(v=0)
   title(countries[i])
